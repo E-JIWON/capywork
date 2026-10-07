@@ -6,8 +6,10 @@ struct SessionPanel: View {
     let store: SessionStore
 
     var body: some View {
+        let a = store.account
         PanelView(log: store.log, usage: store.usage, history: store.history, onOpen: store.open,
-                  account: store.account.status, onConnect: store.account.connect, onDisconnect: store.account.disconnect)
+                  account: AccountState(status: a.status, plan: a.plan, checkedAt: a.checkedAt),
+                  actions: AccountActions(connect: a.connect, check: a.checkNow, openTerminal: a.openTerminal, disconnect: a.disconnect))
     }
 }
 
@@ -16,9 +18,8 @@ struct PanelView: View {
     let usage: PlanUsage
     let history: [Date: TimeInterval]
     let onOpen: (Session) -> Void
-    var account = ClaudeAccount.Status.off
-    var onConnect: () -> Void = {}
-    var onDisconnect: () -> Void = {}
+    var account = AccountState()
+    var actions = AccountActions()
 
     @State private var showOlder = false
 
@@ -51,7 +52,7 @@ struct PanelView: View {
                 CountChip(count: sessions.filter { $0.state == .working }.count, label: "작업", tint: Theme.claudeOrange)
             }
 
-            UsageSection(usage: usage, account: account, onConnect: onConnect, onDisconnect: onDisconnect)
+            UsageSection(usage: usage, account: account, actions: actions)
 
             if shown.isEmpty && older.isEmpty {
                 Text("지금은 아무도 일하고 있지 않아요")

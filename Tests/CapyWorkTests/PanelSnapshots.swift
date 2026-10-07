@@ -85,11 +85,12 @@ struct PanelSnapshots {
         var live = usage
         live.source = .account
         live.fiveHour?.estimated = false
-        try save("usage-live", UsageSection(usage: live, account: .live, onConnect: {}, onDisconnect: {}).frame(width: 292).padding(14))
+        try save("usage-live", UsageSection(usage: live, account: AccountState(status: .live, plan: "max", checkedAt: now), actions: AccountActions()).frame(width: 292).padding(14))
         var local = usage
         local.asOf = now - 9 * 60
-        try save("usage-offer", UsageSection(usage: local, account: .off, onConnect: {}, onDisconnect: {}).frame(width: 292).padding(14))
-        try save("usage-expired", UsageSection(usage: local, account: .expired, onConnect: {}, onDisconnect: {}).frame(width: 292).padding(14))
+        for status in [ClaudeAccount.Status.off, .connecting, .expired, .missing, .denied] {
+            try save("usage-\(status)", UsageSection(usage: local, account: AccountState(status: status), actions: AccountActions()).frame(width: 292).padding(14))
+        }
     }
 
     @Test func quietDay() throws {

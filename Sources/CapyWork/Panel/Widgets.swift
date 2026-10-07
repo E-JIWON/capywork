@@ -19,18 +19,30 @@ struct CountChip: View {
     }
 }
 
+struct AccountState {
+    var status = ClaudeAccount.Status.off
+    var plan: String?
+    var checkedAt: Date?
+}
+
+struct AccountActions {
+    var connect: () -> Void = {}
+    var check: () -> Void = {}
+    var openTerminal: () -> Void = {}
+    var disconnect: () -> Void = {}
+}
+
 struct UsageSection: View {
     let usage: PlanUsage
-    let account: ClaudeAccount.Status
-    let onConnect: () -> Void
-    let onDisconnect: () -> Void
+    let account: AccountState
+    let actions: AccountActions
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 6) {
                 Text("사용량").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
                 Spacer()
-                if account == .live {
+                if account.status == .live {
                     HStack(spacing: 4) {
                         Circle().fill(.green).frame(width: 6, height: 6)
                         Text("실시간").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.green)
@@ -39,34 +51,118 @@ struct UsageSection: View {
                     Text("추정 · \(asOf.formatted(date: .omitted, time: .shortened)) 기준")
                         .font(.system(size: 10.5)).foregroundStyle(.tertiary)
                 }
-                if account != .off {
-                    Button("연결 끊기", action: onDisconnect).buttonStyle(.plain)
-                        .font(.system(size: 10.5)).foregroundStyle(.tertiary)
-                }
             }
             if let w = usage.fiveHour { UsageBar(title: "5시간", window: w) }
             if let w = usage.weekly { UsageBar(title: "주간", window: w) }
-            accountFooter
+            AccountCard(account: account, actions: actions)
         }
     }
+}
 
-    @ViewBuilder private var accountFooter: some View {
-        switch account {
+/// Says where the account connection stands and exactly what to do next.
+struct AccountCard: View {
+    let account: AccountState
+    let actions: AccountActions
+
+    var body: some View {
+        switch account.status {
         case .off:
-            ConnectButton(action: onConnect)
+            ConnectButton(action: actions.connect)
         case .connecting:
-            Text("연결 중… 키체인 접근을 물어보면 「항상 허용」을 눌러 주세요").font(.system(size: 10.5)).foregroundStyle(.tertiary)
-        case .expired:
-            Text("Claude Code 로그인이 만료됐어요. 터미널에서 claude 를 한 번 실행하면 다시 정확해져요.")
-                .font(.system(size: 10.5)).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true)
-        case .unavailable:
-            HStack(spacing: 6) {
-                Text("Claude Code 로그인 정보를 읽지 못했어요").font(.system(size: 10.5)).foregroundStyle(.tertiary)
-                Button("다시 시도", action: onConnect).buttonStyle(.plain).font(.system(size: 10.5, weight: .medium))
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Claude Code 로그인 확인 중…").font(.system(size: 11.5, weight: .semibold))
+                    Text("키체인 창이 뜨면 「항상 허용」을 눌러 주세요").font(.system(size: 10.5)).foregroundStyle(.secondary)
+                }
             }
+            .padding(.top, 2)
         case .live:
-            EmptyView()
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).font(.system(size: 11))
+                Text("Claude 계정 연결됨").font(.system(size: 11, weight: .semibold))
+                if let plan = account.plan { Text(plan.capitalized).font(.system(size: 10.5)).foregroundStyle(.secondary) }
+                if let at = account.checkedAt {
+                    Text("· \(at.formatted(date: .omitted, time: .shortened)) 업데이트").font(.system(size: 10.5)).foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Button("연결 끊기", action: actions.disconnect).buttonStyle(.plain).font(.system(size: 10.5)).foregroundStyle(.tertiary)
+            }
+            .padding(.top, 2)
+        case .expired:
+            Notice(
+                title: "로그인을 새로 고치면 정확해져요",
+                message: "지금은 추정값이에요. 카피 출근부는 Claude Code(터미널)의 로그인을 빌려 쓰는데, 그 로그인이 만료됐어요.",
+                steps: ["터미널 열기 → ⌘V → Enter 로 claude 실행", "아무 메시지나 한 번 보내기", "지금 확인 누르기"],
+                primary: ("터미널 열기", actions.openTerminal), secondary: ("지금 확인", actions.check),
+                disconnect: actions.disconnect)
+        case .missing:
+            Notice(
+                title: "Claude Code 로그인이 없어요",
+                message: "카피 출근부는 Claude Code(터미널)의 로그인을 빌려 써요. 터미널에서 claude 를 실행해 로그인해 주세요.",
+                steps: ["터미널 열기 → ⌘V → Enter 로 claude 실행", "안내에 따라 로그인", "다시 확인 누르기"],
+                primary: ("터미널 열기", actions.openTerminal), secondary: ("다시 확인", actions.check),
+                disconnect: actions.disconnect)
+        case .denied:
+            Notice(
+                title: "키체인 접근이 거절됐어요",
+                message: "다시 확인을 누르고, macOS 창이 뜨면 「항상 허용」을 눌러 주세요.",
+                steps: [],
+                primary: ("다시 확인", actions.check), secondary: nil,
+                disconnect: actions.disconnect)
         }
+    }
+}
+
+struct Notice: View {
+    let title: String
+    let message: String
+    let steps: [String]
+    let primary: (String, () -> Void)
+    let secondary: (String, () -> Void)?
+    let disconnect: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Theme.claudeOrange)
+                Text(title).font(.system(size: 12, weight: .semibold))
+            }
+            Text(message).font(.system(size: 10.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if !steps.isEmpty {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text("\(i + 1)").font(.system(size: 9.5, weight: .bold)).foregroundStyle(.white)
+                                .frame(width: 15, height: 15).background(Theme.claudeOrange.opacity(0.85), in: Circle())
+                            Text(step).font(.system(size: 10.5))
+                        }
+                    }
+                }
+            }
+            HStack(spacing: 6) {
+                Button(primary.0, action: primary.1).buttonStyle(PillButton(prominent: true))
+                if let secondary { Button(secondary.0, action: secondary.1).buttonStyle(PillButton(prominent: false)) }
+                Spacer()
+                Button("연결 끊기", action: disconnect).buttonStyle(.plain).font(.system(size: 10.5)).foregroundStyle(.tertiary)
+            }
+        }
+        .padding(10)
+        .background(Theme.claudeOrange.opacity(0.08), in: RoundedRectangle(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Theme.claudeOrange.opacity(0.25)))
+        .padding(.top, 2)
+    }
+}
+
+struct PillButton: ButtonStyle {
+    let prominent: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+            .padding(.horizontal, 11).padding(.vertical, 4)
+            .background(prominent ? AnyShapeStyle(Theme.claudeOrange) : AnyShapeStyle(.primary.opacity(0.08)), in: Capsule())
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
