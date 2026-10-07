@@ -2,6 +2,8 @@
 
 # 🍊 카피 출근부 (CapyWork)
 
+[![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange)
+
 **한국어** · [English](README.en.md)
 
 Claude Code 세션마다 맥 상단바에 카피바라가 한 마리씩 나와서, 지금 일하는 중인지 내 확인을 기다리는 중인지 보여줘요.
