@@ -4,115 +4,115 @@ import Foundation
 import Observation
 import Security
 
-/// Optional: exact plan usage from the account Claude Code is signed in with.
-/// Reads Claude Code's keychain entry (macOS asks once) and never refreshes or stores the token,
-/// so it can't disturb Claude Code's own login. When that login has expired, the panel falls back
-/// to the local estimate until `claude` runs again and renews it.
+/// Optional: exact plan usage for the user's Claude account.
+/// The user makes a long-lived token with `claude setup-token` and pastes it once; it lives in
+/// CapyWork's own keychain item and is only ever sent to Anthropic's usage endpoint.
+/// Without it (or if it stops working) the panel shows the local estimate.
 @MainActor @Observable
 final class ClaudeAccount {
     enum Status: Equatable {
-        case off, connecting, live, expired
-        /// No Claude Code login in the keychain at all.
-        case missing
-        /// The user said no to the keychain prompt.
-        case denied
+        case off, checking, live
+        /// Anthropic said the token is expired or revoked.
+        case rejected
+        /// The token works but isn't allowed to read usage.
+        case forbidden
     }
 
     private(set) var status: Status
     private(set) var usage: PlanUsage?
-    private(set) var plan: String?
     private(set) var checkedAt: Date?
 
-    @ObservationIgnored private var token: (value: String, expires: Date)?
     @ObservationIgnored private var lastPoll = Date.distantPast
-    @ObservationIgnored private static let enabledKey = "accountUsage"
     static let pollEvery: TimeInterval = 180
 
     init() {
-        status = UserDefaults.standard.bool(forKey: Self.enabledKey) ? .connecting : .off
+        status = Keychain.read() == nil ? .off : .checking
     }
 
-    func connect() {
-        UserDefaults.standard.set(true, forKey: Self.enabledKey)
-        status = .connecting
-        checkNow()
+    /// Saves a pasted `claude setup-token` token and checks it right away.
+    func connect(token: String) {
+        let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty, Keychain.save(token) else { return }
+        status = .checking
+        lastPoll = .distantPast
+        Task { await poll() }
     }
 
     func checkNow() {
-        if status != .off { status = .connecting }
+        guard status != .off else { return }
+        status = .checking
         lastPoll = .distantPast
-        token = nil
         Task { await poll() }
     }
 
     func disconnect() {
-        UserDefaults.standard.set(false, forKey: Self.enabledKey)
-        token = nil
+        Keychain.delete()
         usage = nil
-        plan = nil
+        checkedAt = nil
         status = .off
     }
 
-    /// Opens Terminal with `claude` on the clipboard, so renewing the login is one paste away.
+    /// Opens Terminal with `claude setup-token` on the clipboard: paste, Enter, sign in once.
     func openTerminal() {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("claude", forType: .string)
+        NSPasteboard.general.setString("claude setup-token", forType: .string)
         NSWorkspace.shared.open(URL(filePath: "/System/Applications/Utilities/Terminal.app"))
     }
 
     func poll(now: Date = .now) async {
-        // An expired login only renews when `claude` runs, so check back less often.
-        let every = status == .expired ? 15 * 60 : Self.pollEvery
-        guard [.connecting, .live, .expired].contains(status), now.timeIntervalSince(lastPoll) > every else { return }
+        guard status == .checking || status == .live, now.timeIntervalSince(lastPoll) > Self.pollEvery else { return }
         lastPoll = now
-        if token.map({ $0.expires <= now }) ?? true {
-            // Off the main thread: macOS may hold this call open while it asks for permission.
-            switch await Task.detached(operation: { Self.readKeychain() }).value {
-            case .found(let value, let expires, let plan):
-                token = (value, expires)
-                self.plan = plan
-            case .missing: return settle(.missing)
-            case .denied: return settle(.denied)  // stop asking until the user retries
-            }
-        }
-        guard let token, token.expires > now else { return settle(.expired) }
+        guard let token = Keychain.read() else { return settle(.off) }
 
         var request = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!, timeoutInterval: 10)
-        request.setValue("Bearer \(token.value)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               let code = (response as? HTTPURLResponse)?.statusCode else { return }  // offline: keep the last numbers
-        if code == 401 || code == 403 { return settle(.expired) }
-        if code == 200, let fresh = PlanUsage.fromAccount(data, at: .now) {
+        switch code {
+        case 200:
+            guard let fresh = PlanUsage.fromAccount(data, at: .now) else { return settle(.forbidden) }
             usage = fresh
             checkedAt = .now
             status = .live
+        case 401: settle(.rejected)
+        case 403: settle(.forbidden)
+        default: break  // a server hiccup: try again next round
         }
     }
 
     private func settle(_ status: Status) {
-        token = nil
         usage = nil
         checkedAt = .now
         self.status = status
     }
 
-    private enum KeychainResult: Sendable { case found(String, Date, String?), missing, denied }
-
-    nonisolated private static func readKeychain() -> KeychainResult {
-        let query: [String: Any] = [
+    /// CapyWork's own keychain item, so macOS never has to ask for another app's secrets.
+    enum Keychain {
+        static var base: [String: Any] { [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "Claude Code-credentials",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        if status == errSecItemNotFound { return .missing }
-        guard status == errSecSuccess, let data = item as? Data,
-              let oauth = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["claudeAiOauth"] as? [String: Any],
-              let value = oauth["accessToken"] as? String, let expiresMs = oauth["expiresAt"] as? Double
-        else { return status == errSecSuccess ? .missing : .denied }
-        return .found(value, Date(timeIntervalSince1970: expiresMs / 1000), oauth["subscriptionType"] as? String)
+            kSecAttrService as String: "CapyWork Claude token",
+            kSecAttrAccount as String: "default",
+        ] }
+
+        static func read() -> String? {
+            var query = base
+            query[kSecReturnData as String] = true
+            var item: CFTypeRef?
+            guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess, let data = item as? Data else { return nil }
+            return String(data: data, encoding: .utf8)
+        }
+
+        static func save(_ token: String) -> Bool {
+            delete()
+            var item = base
+            item[kSecValueData as String] = Data(token.utf8)
+            item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
+        }
+
+        static func delete() {
+            SecItemDelete(base as CFDictionary)
+        }
     }
 }

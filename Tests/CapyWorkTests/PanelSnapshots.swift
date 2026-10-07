@@ -85,10 +85,11 @@ struct PanelSnapshots {
         var live = usage
         live.source = .account
         live.fiveHour?.estimated = false
-        try save("usage-live", UsageSection(usage: live, account: AccountState(status: .live, plan: "max", checkedAt: now), actions: AccountActions()).frame(width: 292).padding(14))
+        try save("usage-live", UsageSection(usage: live, account: AccountState(status: .live, checkedAt: now), actions: AccountActions()).frame(width: 292).padding(14))
         var local = usage
         local.asOf = now - 9 * 60
-        for status in [ClaudeAccount.Status.off, .connecting, .expired, .missing, .denied] {
+        try save("usage-setup", TokenSetup(actions: AccountActions(), cancel: {}).frame(width: 292).padding(14))
+        for status in [ClaudeAccount.Status.off, .checking, .rejected, .forbidden] {
             try save("usage-\(status)", UsageSection(usage: local, account: AccountState(status: status), actions: AccountActions()).frame(width: 292).padding(14))
         }
     }
