@@ -46,11 +46,12 @@ final class ClaudeAccount {
             NSApp.activate()
             return
         }
-        let web = Self.webView(frame: NSRect(x: 0, y: 0, width: 460, height: 680))
+        let web = Self.webView(frame: NSRect(x: 0, y: 0, width: 520, height: 760))
         web.uiDelegate = popups  // Google / Apple sign-in open their own popup windows
         web.load(URLRequest(url: Self.site.appending(path: "login")))
-        let window = NSWindow(contentRect: web.frame, styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Claude 로그인 · 카피 출근부"
+        let window = NSWindow(contentRect: web.frame, styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                              backing: .buffered, defer: false)
+        window.title = "Claude 로그인 · 카피 출근부 (한 번만 하면 기억해요)"
         window.contentView = web
         window.isReleasedWhenClosed = false
         window.center()
