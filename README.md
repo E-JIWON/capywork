@@ -53,7 +53,8 @@ cd capywork
 
 ## 어떻게 동작해요?
 
-- **로그인도, 네트워크도 안 써요.** 전부 내 맥 안의 파일만 읽어요.
+- **기본은 로그인도, 네트워크도 안 써요.** 전부 내 맥 안의 파일만 읽어요.
+- **(선택) Claude 계정으로 정확하게 보기** — 패널의 🔑 버튼을 누르면 Claude Code 로그인 정보(키체인)로 Anthropic 사용량 API를 3분마다 불러 정확한 사용률과 초기화 시각을 보여줘요. 로그인 정보는 **읽기만** 하고 갱신·저장하지 않아요. Claude Code 로그인이 만료됐으면 추정값으로 돌아가고, 터미널에서 `claude` 를 한 번 실행하면 다시 정확해져요. 키체인 접근을 물어보면 「항상 허용」을 눌러 주세요 (앱을 업데이트하면 한 번 더 물어볼 수 있어요).
 - `install.sh` 가 `~/.claude/settings.json` 에 Claude Code hook을 등록해요. 기존 설정은 `settings.json.bak-capywork` 로 백업해요. hook은 세션 이벤트를 `~/.capywork/log/` 에 한 줄씩 남겨요.
 - 사용량은 Claude Code statusLine이 넘겨주는 `rate_limits` 와 Claude 앱의 사용량 기록을 읽어요. statusLine 값이 없으면 사용량이 0으로 떨어지는 순간을 찾아 초기화 시각을 추정해요 (「약」이 붙어요). 이미 쓰는 statusLine은 건드리지 않아요.
 - 세션 제목, 읽음 여부, 세션 열기는 Claude 데스크톱 앱의 로컬 파일을 **읽기만** 해요.

@@ -323,3 +323,22 @@ struct LongToolTests {
         #expect(left == Set([names[0], names[1], "notes.txt"]))
     }
 }
+
+@Suite("Account usage")
+struct AccountUsageTests {
+    @Test func parsesTheUsageEndpoint() throws {
+        let json = #"{"five_hour":{"utilization":22.0,"resets_at":"2026-10-07T11:00:00.364238+00:00"},"seven_day":{"utilization":49,"resets_at":"2026-10-14T01:00:01+00:00"},"seven_day_opus":null}"#
+        let u = try #require(PlanUsage.fromAccount(Data(json.utf8), at: at(5)))
+        #expect(u.source == .account)
+        #expect(u.asOf == at(5))
+        #expect(u.fiveHour?.percent == 22)
+        #expect(u.fiveHour?.estimated == false)
+        #expect(u.fiveHour?.resetsAt == PlanUsage.isoDate("2026-10-07T11:00:00.364+00:00"))
+        #expect(u.weekly?.percent == 49)
+    }
+
+    @Test func rejectsErrors() {
+        #expect(PlanUsage.fromAccount(Data(#"{"error":{"type":"authentication_error"}}"#.utf8), at: at(0)) == nil)
+        #expect(PlanUsage.fromAccount(Data("nope".utf8), at: at(0)) == nil)
+    }
+}

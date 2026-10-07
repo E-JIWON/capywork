@@ -17,12 +17,38 @@ public struct UsageWindow: Sendable, Equatable {
 /// reports reset times; the Claude app's ~15-min usage samples don't, so resets are inferred from
 /// where the percentages drop to zero. The newest percentage wins.
 public struct PlanUsage: Sendable, Equatable {
+    public enum Source: Sendable, Equatable { case account, local }
+
     public var fiveHour: UsageWindow?
     public var weekly: UsageWindow?
+    public var source = Source.local
+    /// When the numbers were measured.
+    public var asOf: Date?
 
-    public init(fiveHour: UsageWindow? = nil, weekly: UsageWindow? = nil) {
+    public init(fiveHour: UsageWindow? = nil, weekly: UsageWindow? = nil, source: Source = .local, asOf: Date? = nil) {
         self.fiveHour = fiveHour
         self.weekly = weekly
+        self.source = source
+        self.asOf = asOf
+    }
+
+    /// The `/api/oauth/usage` response: exact percentages and reset times for the signed-in account.
+    public static func fromAccount(_ data: Data, at now: Date) -> PlanUsage? {
+        guard let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        func window(_ key: String) -> UsageWindow? {
+            guard let w = o[key] as? [String: Any], let pct = (w["utilization"] as? NSNumber)?.doubleValue else { return nil }
+            return UsageWindow(percent: pct, resetsAt: (w["resets_at"] as? String).flatMap(isoDate))
+        }
+        let usage = PlanUsage(fiveHour: window("five_hour"), weekly: window("seven_day"), source: .account, asOf: now)
+        return usage.isEmpty ? nil : usage
+    }
+
+    static func isoDate(_ s: String) -> Date? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: s) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: s)
     }
 
     public var isEmpty: Bool { fiveHour == nil && weekly == nil }
@@ -34,12 +60,14 @@ public struct PlanUsage: Sendable, Equatable {
 
         if let o = json(statusLine), let ts = o["ts"] as? Double, let limits = o["rate_limits"] as? [String: Any] {
             snapshotAt = Date(timeIntervalSince1970: ts)
+            usage.asOf = snapshotAt
             usage.fiveHour = window(limits["five_hour"], now: now)
             usage.weekly = window(limits["seven_day"], now: now)
         }
 
         let samples = Sample.read(appHistory)
         if let last = samples.last, last.at > snapshotAt {
+            usage.asOf = last.at
             usage.fiveHour = UsageWindow(percent: last.fiveHour, resetsAt: usage.fiveHour?.resetsAt)
             usage.weekly = UsageWindow(percent: last.weekly, resetsAt: usage.weekly?.resetsAt)
         }

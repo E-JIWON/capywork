@@ -19,6 +19,70 @@ struct CountChip: View {
     }
 }
 
+struct UsageSection: View {
+    let usage: PlanUsage
+    let account: ClaudeAccount.Status
+    let onConnect: () -> Void
+    let onDisconnect: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Text("사용량").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                Spacer()
+                if account == .live {
+                    HStack(spacing: 4) {
+                        Circle().fill(.green).frame(width: 6, height: 6)
+                        Text("실시간").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.green)
+                    }
+                } else if let asOf = usage.asOf {
+                    Text("추정 · \(asOf.formatted(date: .omitted, time: .shortened)) 기준")
+                        .font(.system(size: 10.5)).foregroundStyle(.tertiary)
+                }
+                if account != .off {
+                    Button("연결 끊기", action: onDisconnect).buttonStyle(.plain)
+                        .font(.system(size: 10.5)).foregroundStyle(.tertiary)
+                }
+            }
+            if let w = usage.fiveHour { UsageBar(title: "5시간", window: w) }
+            if let w = usage.weekly { UsageBar(title: "주간", window: w) }
+            accountFooter
+        }
+    }
+
+    @ViewBuilder private var accountFooter: some View {
+        switch account {
+        case .off:
+            Button(action: onConnect) {
+                HStack(spacing: 6) {
+                    Image(systemName: "key.fill").font(.system(size: 10))
+                    Text("Claude 계정으로 정확하게 보기").font(.system(size: 11, weight: .medium))
+                    Text("선택 · 안 해도 돼요").font(.system(size: 10.5)).foregroundStyle(.tertiary)
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .lineLimit(1)
+            .help("Claude Code 로그인 정보로 정확한 사용량을 가져와요. 안 하면 추정값으로 보여요.")
+            .accessibilityHint("Claude Code 로그인 정보를 읽도록 키체인 접근을 물어봐요")
+        case .connecting:
+            Text("연결 중… 키체인 접근을 물어보면 「항상 허용」을 눌러 주세요").font(.system(size: 10.5)).foregroundStyle(.tertiary)
+        case .expired:
+            Text("Claude Code 로그인이 만료됐어요. 터미널에서 claude 를 한 번 실행하면 다시 정확해져요.")
+                .font(.system(size: 10.5)).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true)
+        case .unavailable:
+            HStack(spacing: 6) {
+                Text("Claude Code 로그인 정보를 읽지 못했어요").font(.system(size: 10.5)).foregroundStyle(.tertiary)
+                Button("다시 시도", action: onConnect).buttonStyle(.plain).font(.system(size: 10.5, weight: .medium))
+            }
+        case .live:
+            EmptyView()
+        }
+    }
+}
+
 struct UsageBar: View {
     let title: String
     let window: UsageWindow

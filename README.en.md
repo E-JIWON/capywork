@@ -53,7 +53,8 @@ It builds from source on your Mac, so there's no "unidentified developer" warnin
 
 ## How it works
 
-- **No login, no network.** It only reads files on your Mac.
+- **By default, no login and no network.** It only reads files on your Mac.
+- **(Optional) exact numbers from your Claude account** — the 🔑 button reads Claude Code's login from the keychain and asks Anthropic's usage API every 3 minutes for exact percentages and reset times. The token is only read, never refreshed or stored. If Claude Code's login has expired, the panel falls back to the estimate until `claude` runs again. Choose "Always Allow" when macOS asks (an update may ask once more).
 - `install.sh` registers Claude Code hooks in `~/.claude/settings.json` (backed up to `settings.json.bak-capywork`). The hooks append session events to `~/.capywork/log/`.
 - Plan usage comes from the `rate_limits` Claude Code passes to its statusLine, plus the Claude app's usage history. Without statusLine data, reset times are estimated from where usage drops to zero (shown with "약", about). An existing statusLine is left alone.
 - Session titles, read state, and "open session" come from the Claude desktop app's local files, **read-only**.

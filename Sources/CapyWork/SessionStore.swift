@@ -9,6 +9,7 @@ final class SessionStore {
     private(set) var history: [Date: TimeInterval] = [:]
     /// The menu bar capybaras. Only reassigned when the picture actually changes.
     private(set) var cast = Cast.napping
+    let account = ClaudeAccount()
     @ObservationIgnored var onCastChange: ((Cast) -> Void)?
     @ObservationIgnored var notify: @MainActor (_ title: String, _ body: String, _ open: URL?) -> Void = {
         Notifier.shared.post(title: $0, body: $1, open: $2)
@@ -64,7 +65,8 @@ final class SessionStore {
         history[today] = max(log.workTime, backfillToday)
         attachDesktopInfo(to: &log, now: now)
         self.log = log
-        usage = PlanUsage.read(now: now)
+        Task { await account.poll(now: now) }
+        usage = account.usage ?? PlanUsage.read(now: now)
         notifyIfNeeded(now: now)
         trackClockOuts(now: now)
         let fast = log.sessions.contains { $0.isNeglected(now: now) }
