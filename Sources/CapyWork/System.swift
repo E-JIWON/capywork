@@ -1,22 +1,4 @@
-import AppKit
-import Carbon
-
-enum HotKey {
-    nonisolated(unsafe) private static var action: (@MainActor () -> Void)?
-
-    /// ⌃⌥⌘C from anywhere. Carbon hot keys need no Accessibility permission.
-    static func register(_ handler: @escaping @MainActor () -> Void) {
-        action = handler
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
-            MainActor.assumeIsolated { HotKey.action?() }
-            return noErr
-        }, 1, &spec, nil, nil)
-        var ref: EventHotKeyRef?
-        RegisterEventHotKey(UInt32(kVK_ANSI_C), UInt32(controlKey | optionKey | cmdKey),
-                            EventHotKeyID(signature: OSType(0x4341_5059), id: 1), GetApplicationEventTarget(), 0, &ref)
-    }
-}
+import Foundation
 
 enum Notifier {
     static func post(title: String, body: String) {

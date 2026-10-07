@@ -24,7 +24,7 @@ Claude Code 세션마다 맥 상단바에 카피바라가 한 마리씩 나와�
 - **세션 목록** — 누르면 Claude 앱에서 그 세션이 바로 열려요
 - **이번 주 잔디** — 요일별 근무 시간
 
-어디서든 `⌃⌥⌘C` 를 누르면 결재 대기 중인 세션으로 바로 가요.
+카피바라를 **우클릭**하면 결재 대기 중인 세션으로 바로 가요.
 
 ## 설치
 
@@ -79,6 +79,7 @@ tools/capy.py     카피바라 도트 생성기
 ```bash
 swift build        # 빌드
 swift test         # 테스트 (스냅샷 이미지는 .build/snapshots/)
+CAPYWORK_HOME=/tmp/qa CAPYWORK_SELFCHECK=/tmp/qa/out "$(swift build --show-bin-path)/CapyWork"  # 상단바 클릭 자가 점검
 open Package.swift # Xcode로 열기
 ```
 

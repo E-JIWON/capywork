@@ -10,29 +10,32 @@ public struct DayLog: Sendable {
 
     public init() {}
 
-    /// Sessions killed without a SessionEnd would linger forever; drop them after this much silence.
-    static let staleAfter: TimeInterval = 3 * 3600
-
     public static func load(_ day: Date, now: Date) -> DayLog {
         parse((try? String(contentsOf: Paths.log(for: day), encoding: .utf8)) ?? "", now: now)
     }
 
     public static func parse(_ text: String, now: Date) -> DayLog {
+        var fold = Fold()
+        for line in text.split(separator: "\n") { fold.apply(line) }
+        return fold.snapshot(now: now)
+    }
+
+    /// Running state of the fold, so a growing log can be read a few new lines at a time.
+    struct Fold {
         var log = DayLog()
         var sessions: [String: Session] = [:]
         var workStart: [String: Date] = [:]
 
-        func clockOff(_ id: String, _ t: Date) {
-            if let start = workStart.removeValue(forKey: id) { log.workTime += t.timeIntervalSince(start) }
-        }
+        /// Sessions killed without a SessionEnd would linger forever; drop them after this much silence.
+        static let staleAfter: TimeInterval = 3 * 3600
 
-        for line in text.split(separator: "\n") {
+        mutating func apply(_ line: Substring) {
             guard let o = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
                   let ts = o["ts"] as? Double, let event = o["e"] as? String, let id = o["sid"] as? String
-            else { continue }
+            else { return }
             let t = Date(timeIntervalSince1970: ts)
             log.firstEvent = log.firstEvent ?? t
-            var s = sessions[id] ?? Session(id: id, project: projectName(o["cwd"] as? String), since: t, lastEvent: t)
+            var s = sessions[id] ?? Session(id: id, project: DayLog.projectName(o["cwd"] as? String), since: t, lastEvent: t)
             let before = s.state
 
             switch event {
@@ -58,7 +61,7 @@ public struct DayLog: Sendable {
             case "SessionEnd":
                 clockOff(id, t)
                 if sessions.removeValue(forKey: id) != nil { log.ended.append((id, t)) }
-                continue
+                return
             default:
                 break
             }
@@ -67,16 +70,62 @@ public struct DayLog: Sendable {
             sessions[id] = s
         }
 
-        for (id, start) in workStart where sessions[id] != nil { log.workTime += now.timeIntervalSince(start) }
-        log.sessions = sessions.values
-            .filter { now.timeIntervalSince($0.lastEvent) < staleAfter }
-            .sorted(by: Session.byUrgency)
-        return log
+        mutating func clockOff(_ id: String, _ t: Date) {
+            if let start = workStart.removeValue(forKey: id) { log.workTime += t.timeIntervalSince(start) }
+        }
+
+        func snapshot(now: Date) -> DayLog {
+            var out = log
+            for (id, start) in workStart where sessions[id] != nil { out.workTime += now.timeIntervalSince(start) }
+            out.sessions = sessions.values
+                .filter { now.timeIntervalSince($0.lastEvent) < Self.staleAfter }
+                .sorted(by: Session.byUrgency)
+            return out
+        }
     }
 
     static func projectName(_ cwd: String?) -> String {
         guard let cwd else { return "?" }
         if cwd.contains("/scratch-workspaces/") { return "임시 작업" }
         return cwd.split(separator: "/").last.map(String.init) ?? "?"
+    }
+}
+
+/// Follows today's log file, reading only the bytes appended since the last call.
+public final class DayLogReader {
+    private let file: (Date) -> URL
+    private var day: Date?
+    private var offset: UInt64 = 0
+    private var partial = Data()
+    private var fold = DayLog.Fold()
+
+    public init(file: @escaping (Date) -> URL = Paths.log(for:)) {
+        self.file = file
+    }
+
+    public func read(_ day: Date, now: Date) -> DayLog {
+        if day != self.day { reset(day) }
+        guard let handle = try? FileHandle(forReadingFrom: file(day)) else { return fold.snapshot(now: now) }
+        defer { try? handle.close() }
+        if let end = try? handle.seekToEnd(), end < offset { reset(day) }  // truncated or replaced
+        try? handle.seek(toOffset: offset)
+        let fresh = (try? handle.readToEnd()) ?? Data()
+        offset += UInt64(fresh.count)
+
+        var buffer = partial + fresh
+        if let lastNewline = buffer.lastIndex(of: UInt8(ascii: "\n")) {
+            let complete = buffer[..<lastNewline]
+            for line in String(decoding: complete, as: UTF8.self).split(separator: "\n") { fold.apply(line) }
+            buffer = Data(buffer[(lastNewline + 1)...])
+        }
+        partial = buffer  // a line the hook is still writing
+        return fold.snapshot(now: now)
+    }
+
+    private func reset(_ day: Date) {
+        self.day = day
+        offset = 0
+        partial = Data()
+        fold = DayLog.Fold()
     }
 }

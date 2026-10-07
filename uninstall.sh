@@ -4,6 +4,7 @@ D="$HOME/.capywork"
 S="$HOME/.claude/settings.json"
 launchctl bootout "gui/$(id -u)/com.capywork" 2>/dev/null
 rm -f "$HOME/Library/LaunchAgents/com.capywork.plist"
+rm -rf "$HOME/Applications/CapyWork.app"
 if [ -f "$S" ]; then
   cp "$S" "$S.bak-capywork-uninstall"
   /usr/bin/jq --arg h "\"$D/hook.sh\"" '

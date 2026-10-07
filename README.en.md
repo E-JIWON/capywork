@@ -24,7 +24,7 @@ Click a capybara to open the attendance board:
 - **Session list**: click one to jump to it in the Claude app
 - **This week's grass**: work time per day
 
-Press `⌃⌥⌘C` anywhere to jump straight to the session waiting for approval.
+**Right-click** a capybara to jump straight to the session waiting for approval.
 
 ## Install
 
@@ -79,6 +79,7 @@ tools/capy.py     pixel-art generator
 ```bash
 swift build        # build
 swift test         # tests (snapshot images land in .build/snapshots/)
+CAPYWORK_HOME=/tmp/qa CAPYWORK_SELFCHECK=/tmp/qa/out "$(swift build --show-bin-path)/CapyWork"  # status item click self-check
 open Package.swift # open in Xcode
 ```
 

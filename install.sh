@@ -6,6 +6,7 @@ cd "$(dirname "$0")"
 D="$HOME/.capywork"
 S="$HOME/.claude/settings.json"
 L="$HOME/Library/LaunchAgents/com.capywork.plist"
+APP="$HOME/Applications/CapyWork.app"
 
 command -v swiftc >/dev/null || { echo "Xcode Command Line Tools가 필요해요 → xcode-select --install"; exit 1; }
 [ -x /usr/bin/jq ] || { echo "macOS 15 (Sequoia) 이상이 필요해요"; exit 1; }
@@ -13,7 +14,26 @@ command -v swiftc >/dev/null || { echo "Xcode Command Line Tools가 필요해요
 echo "▸ 빌드 중..."
 mkdir -p "$D/log"
 swift build -c release --product CapyWork >/dev/null
-cp "$(swift build -c release --show-bin-path)/CapyWork" "$D/CapyWork"
+rm -rf "$APP" "$D/CapyWork"
+mkdir -p "$APP/Contents/MacOS"
+cp "$(swift build -c release --show-bin-path)/CapyWork" "$APP/Contents/MacOS/CapyWork"
+cat > "$APP/Contents/Info.plist" <<INFO
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key><string>CapyWork</string>
+  <key>CFBundleIdentifier</key><string>com.capywork.app</string>
+  <key>CFBundleName</key><string>CapyWork</string>
+  <key>CFBundleDisplayName</key><string>카피 출근부</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>LSMinimumSystemVersion</key><string>15.0</string>
+  <key>LSUIElement</key><true/>
+</dict>
+</plist>
+INFO
+codesign --force --sign - "$APP" 2>/dev/null
 cp scripts/hook.sh scripts/statusline.sh "$D/" && chmod +x "$D/hook.sh" "$D/statusline.sh"
 
 echo "▸ 지난 근무 기록으로 잔디 채우는 중..."
@@ -42,7 +62,7 @@ cat > "$L" <<PLIST
 <plist version="1.0">
 <dict>
   <key>Label</key><string>com.capywork</string>
-  <key>ProgramArguments</key><array><string>$D/CapyWork</string></array>
+  <key>ProgramArguments</key><array><string>$APP/Contents/MacOS/CapyWork</string></array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
 </dict>

@@ -11,6 +11,7 @@ final class SessionStore {
     private(set) var cast = Cast.napping
     @ObservationIgnored var onCastChange: ((Cast) -> Void)?
     @ObservationIgnored var notify: (_ title: String, _ body: String) -> Void = Notifier.post
+    @ObservationIgnored var openURL: (URL) -> Void = { NSWorkspace.shared.open($0) }
 
     @ObservationIgnored private var desktop: [String: DesktopSession] = [:]
     @ObservationIgnored private var seenAt: [String: Date] = [:]
@@ -21,7 +22,8 @@ final class SessionStore {
     @ObservationIgnored private var historyDay = Date.distantPast
     @ObservationIgnored private var backfillToday: TimeInterval = 0
     @ObservationIgnored private var lastScan = Date.distantPast
-    @ObservationIgnored private var parsed: (size: Int, modified: Date, at: Date, log: DayLog)?
+    @ObservationIgnored private let reader = DayLogReader()
+    @ObservationIgnored private var desktopReadAt: [String: Date] = [:]
     @ObservationIgnored private var clockOuts: [Date] = []
     @ObservationIgnored private var tick = 0
     @ObservationIgnored private var timer: Timer?
@@ -29,7 +31,6 @@ final class SessionStore {
 
     init() {
         refresh()
-        HotKey.register { [weak self] in self?.openMostUrgent() }
         // ponytail: 2s polling re-parses the whole day log; switch to a file watcher if it gets slow.
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
@@ -52,14 +53,15 @@ final class SessionStore {
             history = WorkHistory.load(today: today)
             backfillToday = history[today] ?? 0
         }
-        var log = loadToday(today, now: now)
+        var log = reader.read(today, now: now)
         history[today] = max(log.workTime, backfillToday)
         attachDesktopInfo(to: &log, now: now)
         self.log = log
         usage = PlanUsage.read(now: now)
         notifyIfNeeded(now: now)
         trackClockOuts(now: now)
-        setAnimating(log.sessions.contains(where: \.isActive) || !clockOuts.isEmpty)
+        let fast = log.sessions.contains { $0.isNeglected(now: now) }
+        setAnimating(log.sessions.contains(where: \.isActive) || !clockOuts.isEmpty, fast: fast)
         updateCast(now: now)
     }
 
@@ -70,38 +72,29 @@ final class SessionStore {
         onCastChange?(next)
     }
 
-    /// Ticks every 0.15s while anything moves; stops entirely while the only capybara naps.
-    private func setAnimating(_ on: Bool) {
-        guard on != (animation != nil) else { return }
+    /// `tick` counts 0.15s steps. Wakes every 0.3s, or every 0.15s while a neglected approval
+    /// flashes, and stops entirely while the only capybara naps.
+    private func setAnimating(_ on: Bool, fast: Bool) {
+        let interval: TimeInterval? = on ? (fast ? 0.15 : 0.3) : nil
+        guard interval != animation?.timeInterval else { return }
         animation?.invalidate()
-        animation = on
-            ? .scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
+        animation = interval.map { interval in
+            let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self else { return }
-                    self.tick += 1
+                    self.tick += interval > 0.2 ? 2 : 1
                     self.updateCast()
                 }
             }
-            : nil
-    }
-
-    /// Re-parse only when the log changed, or every 30s so open work intervals keep counting.
-    private func loadToday(_ today: Date, now: Date) -> DayLog {
-        let attrs = try? FileManager.default.attributesOfItem(atPath: Paths.log(for: today).path)
-        let size = attrs?[.size] as? Int ?? -1
-        let modified = attrs?[.modificationDate] as? Date ?? .distantPast
-        if let parsed, parsed.size == size, parsed.modified == modified, now.timeIntervalSince(parsed.at) < 30 {
-            return parsed.log
+            timer.tolerance = interval / 5
+            return timer
         }
-        let log = DayLog.load(today, now: now)
-        parsed = (size, modified, now, log)
-        return log
     }
 
     func open(_ session: Session) {
         guard let url = session.desktopID.flatMap(DesktopSession.openURL(for:)) else { return NSSound.beep() }
         seenAt[session.id] = .now
-        NSWorkspace.shared.open(url)
+        openURL(url)
         refresh()
     }
 
@@ -123,9 +116,12 @@ final class SessionStore {
         for i in log.sessions.indices {
             let id = log.sessions[i].id
             guard var d = desktop[id] else { continue }  // ponytail: terminal-only sessions never count as unread
-            if DesktopSession.modificationDate(d.file) != d.modified, let fresh = DesktopSession.read(d.file) {
+            // These files are ~450KB and an active session touches its own constantly.
+            if now.timeIntervalSince(desktopReadAt[id] ?? .distantPast) > 10,
+               DesktopSession.modificationDate(d.file) != d.modified, let fresh = DesktopSession.read(d.file) {
                 d = fresh
                 desktop[id] = fresh
+                desktopReadAt[id] = now
             }
             log.sessions[i].title = d.title
             log.sessions[i].desktopID = d.id

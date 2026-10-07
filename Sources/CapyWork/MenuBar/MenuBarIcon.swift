@@ -19,26 +19,33 @@ enum MenuBarIcon {
         return image
     }
 
+    /// One finished bitmap per cast, so the status bar just blits it.
     private static func compose(_ cast: Cast) -> NSImage {
         let overflow = cast.overflow > 0 ? "+\(cast.overflow)" as NSString : nil
         let font: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .semibold),
-                                                   .foregroundColor: NSColor.labelColor]
-        let overflowWidth = overflow.map { $0.size(withAttributes: font).width + gap } ?? 0
+                                                   .foregroundColor: NSColor(white: 0.55, alpha: 1)]
+        let overflowWidth = overflow.map { ceil($0.size(withAttributes: font).width) + gap } ?? 0
         let count = CGFloat(cast.poses.count)
-        let width = count * sprite.width + (count - 1) * gap + overflowWidth
-        let bitmaps = cast.poses.map(rasterized)
+        let size = CGSize(width: count * sprite.width + (count - 1) * gap + overflowWidth, height: sprite.height)
 
-        let image = NSImage(size: NSSize(width: width, height: sprite.height), flipped: false) { _ in
-            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-            ctx.interpolationQuality = .none
-            for (i, bitmap) in bitmaps.enumerated() {
-                ctx.draw(bitmap, in: CGRect(origin: CGPoint(x: CGFloat(i) * (sprite.width + gap), y: 0), size: sprite))
-            }
-            overflow?.draw(at: NSPoint(x: width - overflowWidth + gap, y: (sprite.height - 14) / 2), withAttributes: font)
-            return true
+        let ctx = bitmapContext(width: Int(size.width * CGFloat(scale)), height: Int(size.height * CGFloat(scale)))
+        ctx.scaleBy(x: CGFloat(scale), y: CGFloat(scale))
+        ctx.interpolationQuality = .none
+        for (i, pose) in cast.poses.enumerated() {
+            ctx.draw(rasterized(pose), in: CGRect(origin: CGPoint(x: CGFloat(i) * (sprite.width + gap), y: 0), size: sprite))
         }
-        image.isTemplate = false
-        return image
+        if let overflow {
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+            overflow.draw(at: NSPoint(x: size.width - overflowWidth + gap, y: (sprite.height - 14) / 2), withAttributes: font)
+            NSGraphicsContext.restoreGraphicsState()
+        }
+        return NSImage(cgImage: ctx.makeImage()!, size: size)
+    }
+
+    private static func bitmapContext(width: Int, height: Int) -> CGContext {
+        CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
     }
 
     /// Each pose is painted pixel by pixel once, then reused as a bitmap.
@@ -46,9 +53,7 @@ enum MenuBarIcon {
         if let hit = sprites[pose] { return hit }
         let unit = Int(pixel * CGFloat(scale))
         let w = 26 * unit, h = 15 * unit
-        let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
-                            space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        let ctx = bitmapContext(width: w, height: h)
         func fill(_ x: Int, _ y: Int, _ color: NSColor) {
             ctx.setFillColor(color.cgColor)
             ctx.fill(CGRect(x: x * unit, y: h - (y + 1) * unit, width: unit, height: unit))

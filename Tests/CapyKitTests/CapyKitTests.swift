@@ -204,3 +204,34 @@ struct FormatTests {
         #expect(Paths.dayKey(week[0]) == "2026-10-05")
     }
 }
+
+@Suite("DayLogReader", .serialized)
+struct DayLogReaderTests {
+    @Test func readsOnlyWhatWasAppended() throws {
+        let day = Date(timeIntervalSince1970: 0)
+        let file = FileManager.default.temporaryDirectory.appending(path: "capywork-reader-\(UUID().uuidString).jsonl")
+        defer { try? FileManager.default.removeItem(at: file) }
+        func write(_ s: String, append: Bool = true) throws {
+            if append, let h = try? FileHandle(forWritingTo: file) {
+                h.seekToEndOfFile(); h.write(Data(s.utf8)); try h.close()
+            } else {
+                try s.write(to: file, atomically: false, encoding: .utf8)
+            }
+        }
+        let reader = DayLogReader { _ in file }
+        try write(event(1, "UserPromptSubmit", "r", extra: #","prompt":"a""#) + "\n", append: false)
+        #expect(reader.read(day, now: at(2)).prompts == 1)
+
+        let half = event(3, "UserPromptSubmit", "r", extra: #","prompt":"b""#)
+        try write(String(half.prefix(20)))
+        #expect(reader.read(day, now: at(4)).prompts == 1, "a half-written line waits")
+        try write(String(half.dropFirst(20)) + "\n" + event(5, "Stop", "r") + "\n")
+        let day2 = reader.read(day, now: at(6))
+        #expect(day2.prompts == 2)
+        #expect(day2.sessions.first?.state == .idle)
+        #expect(day2.sessions.first?.task == "b")
+
+        try write(event(7, "SessionStart", "new") + "\n", append: false)
+        #expect(reader.read(day, now: at(8)).sessions.map(\.id) == ["new"], "a shorter file starts over")
+    }
+}

@@ -4,10 +4,11 @@ public enum Paths {
     static let home = FileManager.default.homeDirectoryForCurrentUser
 
     /// `CAPYWORK_HOME` points a second copy at a sandbox log (used for QA).
-    public static let root = ProcessInfo.processInfo.environment["CAPYWORK_HOME"].map { URL(filePath: $0) }
-        ?? home.appending(path: ".capywork")
-    public static let backfill = root.appending(path: "backfill.json")
-    public static let statusLineSnapshot = root.appending(path: "limits.json")
+    public static var root: URL {
+        ProcessInfo.processInfo.environment["CAPYWORK_HOME"].map { URL(filePath: $0) } ?? home.appending(path: ".capywork")
+    }
+    public static var backfill: URL { root.appending(path: "backfill.json") }
+    public static var statusLineSnapshot: URL { root.appending(path: "limits.json") }
 
     public static let claudeApp = home.appending(path: "Library/Application Support/Claude")
     public static let desktopSessions = claudeApp.appending(path: "claude-code-sessions")

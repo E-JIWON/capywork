@@ -69,7 +69,7 @@ struct PanelView: View {
                         .font(.system(size: 11)).foregroundStyle(.tertiary)
                 }
                 Spacer()
-                Text("⌃⌥⌘C 바로 이동").font(.system(size: 11)).foregroundStyle(.tertiary)
+                Text("우클릭하면 바로 이동").font(.system(size: 11)).foregroundStyle(.tertiary)
                 Text("·").foregroundStyle(.quaternary).accessibilityHidden(true)
                 Button("종료") { NSApp.terminate(nil) }
                     .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary)
