@@ -21,12 +21,12 @@ A macOS menu bar app that gives every Claude Code session its own pixel capybara
 
 Click a capybara to open the attendance board:
 
-- **Needs you · Working · Today's work time**
+- **Today's work time** plus **needs-you · working** badges (red while an approval waits)
 - **5-hour and weekly plan usage**, with reset times
-- **Session list**: click one to jump to it in the Claude app
+- **Session list**: click one to jump to it in the Claude app. Sessions read more than 30 minutes ago fold under "past sessions"
 - **This week's grass**: work time per day
 
-**Right-click** a capybara to jump straight to the session waiting for approval.
+**Right-click** a capybara to jump straight to the session waiting for approval. Clicking a notification opens its session too.
 
 ## Install
 
@@ -46,7 +46,7 @@ cd capywork
 ./install.sh
 ```
 
-It builds from source on your Mac, so there's no "unidentified developer" warning, and it starts automatically at login.
+It builds from source on your Mac, so there's no "unidentified developer" warning. The app lands in `~/Applications/CapyWork.app` and starts at login. Allow notifications when it asks on first launch.
 
 - **Update**: `git pull && ./install.sh`
 - **Remove**: `./uninstall.sh` (removes only what CapyWork added; your own hooks and statusLine stay)
@@ -55,7 +55,7 @@ It builds from source on your Mac, so there's no "unidentified developer" warnin
 
 - **No login, no network.** It only reads files on your Mac.
 - `install.sh` registers Claude Code hooks in `~/.claude/settings.json` (backed up to `settings.json.bak-capywork`). The hooks append session events to `~/.capywork/log/`.
-- Plan usage comes from the `rate_limits` Claude Code passes to its statusLine, plus the Claude app's usage history. If you already have a statusLine, it's left alone (reset times may not show).
+- Plan usage comes from the `rate_limits` Claude Code passes to its statusLine, plus the Claude app's usage history. Without statusLine data, reset times are estimated from where usage drops to zero (shown with "약", about). An existing statusLine is left alone.
 - Session titles, read state, and "open session" come from the Claude desktop app's local files, **read-only**.
 - On first install it backfills the grass grid from your `~/.claude/projects` transcripts.
 
@@ -63,6 +63,7 @@ It builds from source on your Mac, so there's no "unidentified developer" warnin
 
 - Terminal-only sessions can't tell read from unread.
 - Claude app sessions may never send a clock-out event.
+- Interrupting a turn (Esc) sends no end signal, so a working session with 10 minutes of silence counts as stopped. A single command running longer than that may briefly show as idle.
 - A Claude app update can temporarily break titles and "open session"; everything else keeps working.
 
 ## Development
