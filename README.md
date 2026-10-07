@@ -65,9 +65,24 @@ cd capywork
 
 ## 개발
 
-- 앱 전체가 `CapyWork.swift` 한 파일이에요 (SwiftUI `MenuBarExtra`)
-- 자체 테스트: `swiftc -parse-as-library CapyWork.swift -o /tmp/capywork && /tmp/capywork --selftest`
-- 카피바라 도트는 `tools/capy.py` 가 도형을 조합해서 그려요. 전체 동작은 [docs/poses.png](docs/poses.png) 에 있어요.
+```
+Sources/
+  CapyKit/        화면과 상관없는 핵심 로직 (이벤트 해석, 사용량, 카피바라 배치)
+  CapyWork/       메뉴바 앱: SessionStore(@Observable) → MenuBar / Panel 컴포넌트
+Tests/
+  CapyKitTests/   단위 테스트
+  CapyWorkTests/  hook → 화면까지 이어지는 통합 테스트, 라이트/다크 스냅샷
+scripts/          hook.sh · statusline.sh · backfill.py (install.sh가 ~/.capywork로 복사)
+tools/capy.py     카피바라 도트 생성기
+```
+
+```bash
+swift build        # 빌드
+swift test         # 테스트 (스냅샷 이미지는 .build/snapshots/)
+open Package.swift # Xcode로 열기
+```
+
+전체 동작은 [docs/poses.png](docs/poses.png) 에 있어요.
 
 ---
 

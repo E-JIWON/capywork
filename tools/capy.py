@@ -1,5 +1,5 @@
 """Pixel-art source for the capybara poses (26×15 grid).
-Run `python3 tools/capy.py` → groups.json; the frames are pasted into CapyWork.swift."""
+Run `python3 tools/capy.py` → groups.json; the frames are pasted into Sources/CapyKit/Sprites.swift."""
 W, H = 26, 15   # extra headroom for the yuzu, extra width for the rolling one
 OY = 3          # everything drawn 3 rows down so the yuzu fits on top
 

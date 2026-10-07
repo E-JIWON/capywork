@@ -12,12 +12,12 @@ command -v swiftc >/dev/null || { echo "Xcode Command Line Tools가 필요해요
 
 echo "▸ 빌드 중..."
 mkdir -p "$D/log"
-swiftc -parse-as-library CapyWork.swift -o "$D/CapyWork"
-"$D/CapyWork" --selftest >/dev/null
-cp hook.sh statusline.sh "$D/" && chmod +x "$D/hook.sh" "$D/statusline.sh"
+swift build -c release --product CapyWork >/dev/null
+cp "$(swift build -c release --show-bin-path)/CapyWork" "$D/CapyWork"
+cp scripts/hook.sh scripts/statusline.sh "$D/" && chmod +x "$D/hook.sh" "$D/statusline.sh"
 
 echo "▸ 지난 근무 기록으로 잔디 채우는 중..."
-python3 backfill.py >/dev/null || echo "  (건너뜀)"
+python3 scripts/backfill.py >/dev/null || echo "  (건너뜀)"
 
 echo "▸ Claude Code hook 연결 중..."
 mkdir -p "$HOME/.claude"
@@ -48,7 +48,10 @@ cat > "$L" <<PLIST
 </dict>
 </plist>
 PLIST
-launchctl bootout "gui/$(id -u)/com.capywork" 2>/dev/null || true
+service="gui/$(id -u)/com.capywork"
+launchctl bootout "$service" 2>/dev/null || true
+# bootout returns before the old process is gone; bootstrapping too early fails with error 5.
+for _ in 1 2 3 4 5 6 7 8 9 10; do launchctl print "$service" >/dev/null 2>&1 || break; sleep 0.5; done
 launchctl bootstrap "gui/$(id -u)" "$L"
 
 echo "✓ 설치 완료! 상단바에 카피바라가 보일 거예요 🍊"

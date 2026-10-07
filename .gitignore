@@ -1,2 +1,4 @@
+.build/
 groups.json
 .DS_Store
+.swiftpm/
