@@ -65,6 +65,25 @@ struct PanelSnapshots {
         try save("panel-busy", PanelView(log: log(sessions), usage: usage, history: week, onOpen: { _ in }))
     }
 
+    /// The panel used in the README / social preview.
+    @Test func showcase() throws {
+        func s(_ id: String, _ project: String, _ state: WorkState, _ title: String, _ task: String, ago: TimeInterval, unread: Bool = false) -> Session {
+            Session(id: id, project: project, state: state, task: task, since: now - ago, lastEvent: now - ago / 3,
+                    title: title, desktopID: "local_\(id)", finishedAt: state == .idle ? now - ago : nil, unread: unread)
+        }
+        var log = log([
+            s("1", "web-shop", .waiting, "로그인 리다이렉트 버그", "테스트 돌려도 돼?", ago: 90),
+            s("2", "dark-pattern-guide", .idle, "다크패턴 가이드 정리", "체크리스트 PDF로 뽑아줘", ago: 240, unread: true),
+            s("3", "checkout", .working, "결제 페이지 리팩터링", "훅으로 분리하고 테스트 추가", ago: 720),
+            s("4", "capywork", .working, "README 영어판", "한글이랑 똑같이 맞춰줘", ago: 180),
+        ])
+        log.workTime = 4 * 3600 + 12 * 60
+        let usage = PlanUsage(fiveHour: UsageWindow(percent: 57, resetsAt: now + 3 * 3600 + 40 * 60, estimated: true),
+                              weekly: UsageWindow(percent: 17, resetsAt: Calendar.current.nextDate(
+                                after: now, matching: DateComponents(hour: 10, minute: 0, weekday: 4), matchingPolicy: .nextTime)))
+        try save("showcase", PanelView(log: log, usage: usage, history: week, onOpen: { _ in }))
+    }
+
     @Test func quietDay() throws {
         try save("panel-empty", PanelView(log: DayLog(), usage: PlanUsage(), history: [:], onOpen: { _ in }))
     }
