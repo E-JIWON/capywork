@@ -125,23 +125,26 @@ struct Sample {
         return reset > now ? reset : nil
     }
 
-    /// Weekly resets land at the same time each week, so overlapping past drops (taken modulo
-    /// a week) pins it down even when the app was off for some of them. Walking back from the
-    /// newest drop, an older one that doesn't fit means the schedule moved (plan change, a manual
-    /// reset), so history stops there.
+    /// Weekly resets land at the same time each week, so overlapping past drops (taken modulo a
+    /// week) pins the time down even when the app was off for some of them. A one-off reset (a plan
+    /// change, a global reset) doesn't fit the others; the schedule backed by the most drops wins,
+    /// and on a tie the newer one.
     static func nextWeeklyReset(_ samples: [Sample], now: Date) -> Date? {
         let drops = zip(samples, samples.dropFirst())
             .filter { a, b in b.weekly < a.weekly - 3 || (b.weekly == 0 && a.weekly > 0) }
             .map { ($0.at, $1.at) }
-        guard var (lo, hi) = drops.last else { return nil }
-        for (a, b) in drops.dropLast().reversed() {
-            let shift = (lo.timeIntervalSince(a) / week).rounded() * week
-            let (nlo, nhi) = (max(lo, a + shift), min(hi, b + shift))
-            guard nlo <= nhi else { break }
-            (lo, hi) = (nlo, nhi)
+        var best: (support: Int, lo: Date, hi: Date)?
+        for (lo0, hi0) in drops.reversed() {
+            var (lo, hi, support) = (lo0, hi0, 0)
+            for (a, b) in drops {
+                let shift = (lo.timeIntervalSince(a) / week).rounded() * week
+                let (nlo, nhi) = (max(lo, a + shift), min(hi, b + shift))
+                if nlo <= nhi { (lo, hi, support) = (nlo, nhi, support + 1) }
+            }
+            if support > best?.support ?? 0 { best = (support, lo, hi) }
         }
-        guard hi >= lo, hi.timeIntervalSince(lo) <= 2 * 3600 else { return nil }
-        var reset = hourRound(midpoint((lo, hi)))
+        guard let best, best.hi.timeIntervalSince(best.lo) <= 2 * 3600 else { return nil }
+        var reset = hourRound(midpoint((best.lo, best.hi)))
         while reset <= now { reset += week }
         return reset
     }

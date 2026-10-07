@@ -348,15 +348,19 @@ struct MovedScheduleTests {
     func t(_ day: Int, _ h: Int, _ m: Int) -> Date {
         Calendar.current.date(from: DateComponents(timeZone: TimeZone(identifier: "UTC"), year: 2026, month: 10, day: day, hour: h, minute: m))!
     }
+    func drop(_ day: Int, _ h: Int, _ m: Int) -> [Sample] {
+        [Sample(at: t(day, h, m), fiveHour: 0, weekly: 30), Sample(at: t(day, h, m + 10), fiveHour: 0, weekly: 0)]
+    }
 
-    @Test func aResetOffTheOldPatternStartsANewSchedule() {
-        // Wednesdays 01:00 UTC for two weeks, then a sudden reset at 08:18 the same Wednesday.
-        let samples = [
-            Sample(at: t(23, 0, 56), fiveHour: 0, weekly: 40), Sample(at: t(23, 1, 11), fiveHour: 0, weekly: 2),
-            Sample(at: t(30, 0, 58), fiveHour: 0, weekly: 30), Sample(at: t(30, 1, 13), fiveHour: 0, weekly: 1),
-            Sample(at: t(30, 8, 16), fiveHour: 94, weekly: 22), Sample(at: t(30, 8, 21), fiveHour: 2, weekly: 0),
-        ]
+    @Test func aOneOffResetKeepsTheWeeklyPattern() {
+        // Real case: Wednesdays 01:00 UTC, then a one-off reset at 08:16 the same Wednesday.
+        let samples = drop(16, 0, 55) + drop(23, 0, 56) + drop(30, 0, 58) + drop(30, 8, 16)
+        #expect(Sample.nextWeeklyReset(samples, now: t(30, 9, 0)) == Calendar.current.date(byAdding: .day, value: 7, to: t(30, 1, 0)))
+    }
+
+    @Test func aRepeatedNewTimeTakesOver() {
+        let samples = drop(9, 0, 55) + drop(16, 8, 15) + drop(23, 8, 16) + drop(30, 8, 14)
         let reset = Sample.nextWeeklyReset(samples, now: t(30, 9, 0))
-        #expect(reset == Calendar.current.date(byAdding: .day, value: 7, to: t(30, 8, 0)))
+        #expect(reset.map { Calendar.current.dateComponents(in: TimeZone(identifier: "UTC")!, from: $0).hour } == 8)
     }
 }
