@@ -14,6 +14,7 @@ final class SessionStore {
         Notifier.shared.post(title: $0, body: $1, open: $2)
     }
     @ObservationIgnored var openURL: (URL) -> Void = { NSWorkspace.shared.open($0) }
+    @ObservationIgnored var frontmostApp: () -> String? = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
 
     @ObservationIgnored private var desktop: [String: DesktopSession] = [:]
     @ObservationIgnored private var seenAt: [String: Date] = [:]
@@ -21,6 +22,8 @@ final class SessionStore {
     @ObservationIgnored private var notifiedWaiting: Set<String> = []
     @ObservationIgnored private var notifiedNeglect: Set<String> = []
     @ObservationIgnored private var celebrated: Set<String> = []
+    @ObservationIgnored private var archived: Set<String> = []
+    @ObservationIgnored private var firstRefresh = true
     @ObservationIgnored private var historyDay = Date.distantPast
     @ObservationIgnored private var backfillToday: TimeInterval = 0
     @ObservationIgnored private var lastScan = Date.distantPast
@@ -49,10 +52,12 @@ final class SessionStore {
     }
 
     func refresh(now: Date = .now) {
+        defer { firstRefresh = false }
         let today = Calendar.current.startOfDay(for: now)
         if historyDay != today {
             historyDay = today
             history = WorkHistory.load(today: today)
+            WorkHistory.pruneLogs(today: today)
             backfillToday = history[today] ?? 0
         }
         var log = reader.read(today, now: now)
@@ -93,10 +98,10 @@ final class SessionStore {
         }
     }
 
+    /// Opens the session in the Claude app; a terminal-only session can't be opened, so clicking marks it read.
     func open(_ session: Session) {
-        guard let url = session.desktopID.flatMap(DesktopSession.openURL(for:)) else { return NSSound.beep() }
         seenAt[session.id] = .now
-        openURL(url)
+        if let url = session.desktopID.flatMap(DesktopSession.openURL(for:)) { openURL(url) }
         refresh()
     }
 
@@ -111,13 +116,23 @@ final class SessionStore {
             lastScan = now
             for d in DesktopSession.scan() { desktop[d.cliID] = d }
         }
-        // A turn that finished while you were looking at it in the Claude app is already read.
-        let watching = NSWorkspace.shared.frontmostApplication?.bundleIdentifier == DesktopSession.bundleID
-            ? desktop.values.max { $0.lastFocused < $1.lastFocused }?.cliID : nil
+        // A turn that finished while you were looking at it is already read: the focused Claude app
+        // session, or (ponytail: can't tell tabs apart) any terminal session while a terminal is in front.
+        let front = frontmostApp()
+        let watchingDesktop = front == DesktopSession.bundleID ? desktop.values.max { $0.lastFocused < $1.lastFocused }?.cliID : nil
+        let watchingTerminal = front.map(DesktopSession.terminalBundleIDs.contains) ?? false
 
         for i in log.sessions.indices {
             let id = log.sessions[i].id
-            guard var d = desktop[id] else { continue }  // ponytail: terminal-only sessions never count as unread
+            guard var d = desktop[id] else {
+                guard let done = log.sessions[i].finishedAt else { continue }
+                if done != lastFinish[id] {
+                    lastFinish[id] = done
+                    if watchingTerminal { seenAt[id] = done }
+                }
+                log.sessions[i].unread = done > seenAt[id] ?? .distantPast
+                continue
+            }
             // These files are ~450KB and an active session touches its own constantly.
             if now.timeIntervalSince(desktopReadAt[id] ?? .distantPast) > 10,
                DesktopSession.modificationDate(d.file) != d.modified, let fresh = DesktopSession.read(d.file) {
@@ -130,10 +145,16 @@ final class SessionStore {
             guard let done = log.sessions[i].finishedAt else { continue }
             if done != lastFinish[id] {
                 lastFinish[id] = done
-                if id == watching { seenAt[id] = done }
+                if id == watchingDesktop { seenAt[id] = done }
             }
             log.sessions[i].unread = done > max(d.lastFocused, seenAt[id] ?? .distantPast)
         }
+        // Archiving a Claude app session is its clock-out (the app never sends SessionEnd).
+        for d in desktop.values where d.archived && !archived.contains(d.cliID) {
+            archived.insert(d.cliID)
+            if !firstRefresh, log.sessions.contains(where: { $0.id == d.cliID }) { log.ended.append((d.cliID, now)) }
+        }
+        log.sessions.removeAll { archived.contains($0.id) }
         log.sessions.sort(by: Session.byUrgency)
     }
 

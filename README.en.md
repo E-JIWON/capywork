@@ -61,9 +61,10 @@ It builds from source on your Mac, so there's no "unidentified developer" warnin
 
 ## Good to know
 
-- Terminal-only sessions can't tell read from unread.
-- Claude app sessions may never send a clock-out event.
-- Interrupting a turn (Esc) sends no end signal, so a working session with 10 minutes of silence counts as stopped. A single command running longer than that may briefly show as idle.
+- A terminal session counts as read if a terminal was in front when it finished; otherwise it shows as a new answer until you click it in the panel.
+- Archiving a Claude app session in its sidebar counts as clocking out.
+- Interrupting a turn (Esc) sends no end signal, so a working session with 10 minutes of silence counts as stopped (an hour while a command is still running).
+- Logs older than 30 days are deleted automatically.
 - A Claude app update can temporarily break titles and "open session"; everything else keeps working.
 
 ## Development

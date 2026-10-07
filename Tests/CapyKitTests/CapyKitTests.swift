@@ -294,3 +294,32 @@ struct StalledTests {
         #expect(DayLog.parse(log, now: at(130)).sessions.first?.state == .idle)
     }
 }
+
+@Suite("Long tools and cleanup")
+struct LongToolTests {
+    @Test func aRunningToolKeepsTheSessionWorking() {
+        let log = [event(0, "UserPromptSubmit", "s", extra: #","prompt":"build""#), event(10, "PreToolUse", "s")].joined(separator: "\n")
+        #expect(DayLog.parse(log, now: at(10 + 30 * 60)).sessions.first?.state == .working, "30-minute build")
+        #expect(DayLog.parse(log, now: at(10 + 61 * 60)).sessions.first?.state == .idle, "but not forever")
+        let done = log + "\n" + event(20, "PostToolUse", "s")
+        #expect(DayLog.parse(done, now: at(20 + 11 * 60)).sessions.first?.state == .idle, "back to the 10-minute rule")
+    }
+
+    @Test func approvalWaitSurvivesAParallelToolStart() {
+        let log = [event(0, "PreToolUse", "s"), event(1, "Notification", "s", extra: #","msg":"needs your permission""#),
+                   event(2, "PreToolUse", "s")].joined(separator: "\n")
+        #expect(DayLog.parse(log, now: at(3)).sessions.first?.state == .waiting)
+    }
+
+    @Test func prunesOnlyOldLogs() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "capywork-prune-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let today = Calendar.current.startOfDay(for: .now)
+        let names = [0, 29, 31, 400].map { Paths.dayKey(Calendar.current.date(byAdding: .day, value: -$0, to: today)!) + ".jsonl" } + ["notes.txt"]
+        for n in names { FileManager.default.createFile(atPath: dir.appending(path: n).path, contents: Data()) }
+        WorkHistory.pruneLogs(today: today, dir: dir)
+        let left = Set(try FileManager.default.contentsOfDirectory(atPath: dir.path))
+        #expect(left == Set([names[0], names[1], "notes.txt"]))
+    }
+}

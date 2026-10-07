@@ -13,6 +13,17 @@ public enum WorkHistory {
         return days
     }
 
+    /// Hook logs are only read for the past week; anything older than `keep` days is deleted.
+    public static func pruneLogs(today: Date, keep: Int = 30, dir: URL = Paths.root.appending(path: "log")) {
+        guard let cutoff = Calendar.current.date(byAdding: .day, value: -keep, to: today),
+              let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
+        for name in names where name.hasSuffix(".jsonl") {
+            if let day = try? Paths.dayFormat.parse(String(name.dropLast(6))), day < cutoff {
+                try? FileManager.default.removeItem(at: dir.appending(path: name))
+            }
+        }
+    }
+
     public static func readBackfill(_ url: URL) -> [Date: TimeInterval] {
         guard let data = try? Data(contentsOf: url),
               let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Double]

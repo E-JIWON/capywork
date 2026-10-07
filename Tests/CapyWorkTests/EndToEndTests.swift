@@ -38,6 +38,7 @@ struct EndToEndTests {
         let store = SessionStore()
         var notes: [String] = []
         store.notify = { title, _, _ in notes.append(title) }
+        store.frontmostApp = { nil }  // nobody is watching, whatever app runs the tests
         let start = Date.now
 
         try hook("SessionStart")
@@ -70,7 +71,9 @@ struct EndToEndTests {
         try hook("Stop")
         store.refresh(now: .now)
         #expect(store.log.sessions.first?.state == .idle)
-        #expect(store.cast == .napping, "terminal-only sessions can't be unread, so nobody is active")
+        #expect(store.cast.poses.first.map { if case .chew = $0 { true } else { false } } == true, "a finished terminal session is unread")
+        store.open(try #require(store.log.sessions.first))
+        #expect(store.cast == .napping, "clicking it in the panel marks it read")
 
         try hook("SessionEnd")
         store.refresh(now: .now)

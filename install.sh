@@ -52,7 +52,7 @@ had_statusline=$(/usr/bin/jq -r 'if .statusLine and (.statusLine.command | tostr
   .hooks //= {}
   | reduce ("SessionStart", "UserPromptSubmit", "Notification", "Stop", "SessionEnd") as $ev
       (.; add($ev; {hooks: [{type: "command", command: $h}]}))
-  | reduce ("PostToolUse", "PostToolUseFailure") as $ev
+  | reduce ("PreToolUse", "PostToolUse", "PostToolUseFailure") as $ev
       (.; add($ev; {matcher: "*", hooks: [{type: "command", command: $h}]}))
   | if .statusLine == null then .statusLine = {type: "command", command: $sl} else . end
 ' "$S.bak-capywork" > "$S"

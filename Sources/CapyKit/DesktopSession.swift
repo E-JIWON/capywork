@@ -9,12 +9,19 @@ public struct DesktopSession: Sendable {
     public let file: URL
     public let modified: Date
     public let lastFocused: Date
+    public let archived: Bool
 
     public static func openURL(for id: String) -> URL? {
         URL(string: "claude://code/continue?session=\(id)")
     }
 
     public static let bundleID = "com.anthropic.claudefordesktop"
+
+    /// Apps a terminal-only Claude Code session could be running in.
+    public static let terminalBundleIDs: Set<String> = [
+        "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty",
+        "net.kovidgoyal.kitty", "com.github.wez.wezterm", "com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92",
+    ]
 
     public static func read(_ file: URL) -> DesktopSession? {
         guard let data = try? Data(contentsOf: file),
@@ -24,7 +31,8 @@ public struct DesktopSession: Sendable {
         else { return nil }
         return DesktopSession(cliID: cliID, id: id, title: o["title"] as? String ?? "", file: file,
                               modified: modified,
-                              lastFocused: Date(timeIntervalSince1970: ((o["lastFocusedAt"] as? Double) ?? 0) / 1000))
+                              lastFocused: Date(timeIntervalSince1970: ((o["lastFocusedAt"] as? Double) ?? 0) / 1000),
+                              archived: o["isArchived"] as? Bool ?? false)
     }
 
     public static func scan(_ root: URL = Paths.desktopSessions) -> [DesktopSession] {

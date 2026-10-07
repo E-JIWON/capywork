@@ -25,11 +25,14 @@ public struct DayLog: Sendable {
         var log = DayLog()
         var sessions: [String: Session] = [:]
         var workStart: [String: Date] = [:]
+        var toolRunning: Set<String> = []
 
         /// Sessions killed without a SessionEnd would linger forever; drop them after this much silence.
         static let staleAfter: TimeInterval = 3 * 3600
         /// Interrupting a turn (Esc) sends no Stop, so "working" with this much silence has really stopped.
         static let stallAfter: TimeInterval = 10 * 60
+        /// A tool that started and never reported back gets longer (builds, installs), but not forever.
+        static let stallAfterRunningTool: TimeInterval = 60 * 60
 
         mutating func apply(_ line: Substring) {
             guard let o = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
@@ -49,9 +52,14 @@ public struct DayLog: Sendable {
                 let prompt = (o["prompt"] as? String ?? "").replacingOccurrences(of: "\n", with: " ")
                 if !prompt.hasPrefix("<") { s.task = prompt }  // skip system turns like <task-notification>
                 workStart[id] = workStart[id] ?? t
+            case "PreToolUse":
+                if s.state != .waiting { s.state = .working }
+                toolRunning.insert(id)
+                workStart[id] = workStart[id] ?? t
             case "PostToolUse", "PostToolUseFailure":
                 s.state = .working
                 s.failStreak = event == "PostToolUse" ? 0 : s.failStreak + 1
+                toolRunning.remove(id)
                 workStart[id] = workStart[id] ?? t
             case "Notification":
                 // Only permission prompts wait on you; the "waiting for your input" ping means the turn is over.
@@ -60,6 +68,7 @@ public struct DayLog: Sendable {
             case "Stop":
                 s.state = .idle
                 s.finishedAt = t
+                toolRunning.remove(id)
                 clockOff(id, t)
             case "SessionEnd":
                 clockOff(id, t)
@@ -82,7 +91,8 @@ public struct DayLog: Sendable {
             var sessions = sessions
             for (id, start) in workStart {
                 guard let s = sessions[id] else { continue }
-                let stalled = now.timeIntervalSince(s.lastEvent) > Self.stallAfter
+                let limit = toolRunning.contains(id) ? Self.stallAfterRunningTool : Self.stallAfter
+                let stalled = now.timeIntervalSince(s.lastEvent) > limit
                 out.workTime += (stalled ? s.lastEvent : now).timeIntervalSince(start)
                 if stalled && s.state == .working {
                     sessions[id]?.state = .idle
