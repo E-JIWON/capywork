@@ -15,7 +15,8 @@ echo "▸ 빌드 중..."
 mkdir -p "$D/log"
 swift build -c release --product CapyWork >/dev/null
 rm -rf "$APP" "$D/CapyWork"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 cp "$(swift build -c release --show-bin-path)/CapyWork" "$APP/Contents/MacOS/CapyWork"
 cat > "$APP/Contents/Info.plist" <<INFO
 <?xml version="1.0" encoding="UTF-8"?>
@@ -23,6 +24,7 @@ cat > "$APP/Contents/Info.plist" <<INFO
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key><string>CapyWork</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleIdentifier</key><string>com.capywork.app</string>
   <key>CFBundleName</key><string>CapyWork</string>
   <key>CFBundleDisplayName</key><string>카피 출근부</string>
@@ -34,6 +36,7 @@ cat > "$APP/Contents/Info.plist" <<INFO
 </plist>
 INFO
 codesign --force --sign - "$APP" 2>/dev/null
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" 2>/dev/null || true
 cp scripts/hook.sh scripts/statusline.sh "$D/" && chmod +x "$D/hook.sh" "$D/statusline.sh"
 
 echo "▸ 지난 근무 기록으로 잔디 채우는 중..."

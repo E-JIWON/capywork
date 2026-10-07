@@ -1,3 +1,5 @@
+<img src="docs/icon.png" width="128" alt="카피 출근부 아이콘: 밤하늘 아래 귤을 얹고 자는 카피바라">
+
 # 🍊 카피 출근부 (CapyWork)
 
 **한국어** · [English](README.en.md)

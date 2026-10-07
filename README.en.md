@@ -1,3 +1,5 @@
+<img src="docs/icon.png" width="128" alt="CapyWork icon: a capybara napping with a yuzu under a night sky">
+
 # 🍊 CapyWork (카피 출근부)
 
 [한국어](README.md) · **English**
