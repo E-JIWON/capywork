@@ -125,17 +125,20 @@ struct Sample {
         return reset > now ? reset : nil
     }
 
-    /// Weekly resets land at the same time each week, so overlapping every past drop
-    /// (taken modulo a week) pins it down even when the app was off for some of them.
+    /// Weekly resets land at the same time each week, so overlapping past drops (taken modulo
+    /// a week) pins it down even when the app was off for some of them. Walking back from the
+    /// newest drop, an older one that doesn't fit means the schedule moved (plan change, a manual
+    /// reset), so history stops there.
     static func nextWeeklyReset(_ samples: [Sample], now: Date) -> Date? {
         let drops = zip(samples, samples.dropFirst())
             .filter { a, b in b.weekly < a.weekly - 3 || (b.weekly == 0 && a.weekly > 0) }
             .map { ($0.at, $1.at) }
         guard var (lo, hi) = drops.last else { return nil }
-        for (a, b) in drops.dropLast() {
+        for (a, b) in drops.dropLast().reversed() {
             let shift = (lo.timeIntervalSince(a) / week).rounded() * week
-            lo = max(lo, a + shift)
-            hi = min(hi, b + shift)
+            let (nlo, nhi) = (max(lo, a + shift), min(hi, b + shift))
+            guard nlo <= nhi else { break }
+            (lo, hi) = (nlo, nhi)
         }
         guard hi >= lo, hi.timeIntervalSince(lo) <= 2 * 3600 else { return nil }
         var reset = hourRound(midpoint((lo, hi)))

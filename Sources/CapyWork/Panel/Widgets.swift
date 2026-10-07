@@ -53,20 +53,7 @@ struct UsageSection: View {
     @ViewBuilder private var accountFooter: some View {
         switch account {
         case .off:
-            Button(action: onConnect) {
-                HStack(spacing: 6) {
-                    Image(systemName: "key.fill").font(.system(size: 10))
-                    Text("Claude 계정으로 정확하게 보기").font(.system(size: 11, weight: .medium))
-                    Text("선택 · 안 해도 돼요").font(.system(size: 10.5)).foregroundStyle(.tertiary)
-                }
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .lineLimit(1)
-            .help("Claude Code 로그인 정보로 정확한 사용량을 가져와요. 안 하면 추정값으로 보여요.")
-            .accessibilityHint("Claude Code 로그인 정보를 읽도록 키체인 접근을 물어봐요")
+            ConnectButton(action: onConnect)
         case .connecting:
             Text("연결 중… 키체인 접근을 물어보면 「항상 허용」을 눌러 주세요").font(.system(size: 10.5)).foregroundStyle(.tertiary)
         case .expired:
@@ -80,6 +67,40 @@ struct UsageSection: View {
         case .live:
             EmptyView()
         }
+    }
+}
+
+/// The optional "sign in for exact numbers" offer: a real button, but clearly skippable.
+struct ConnectButton: View {
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: "key.fill")
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.claudeOrange)
+                    .frame(width: 26, height: 26)
+                    .background(Theme.claudeOrange.opacity(0.15), in: RoundedRectangle(cornerRadius: 7))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Claude 계정으로 정확하게 보기").font(.system(size: 12, weight: .semibold))
+                    Text("선택 사항 · 안 해도 추정값으로 보여요").font(.system(size: 10.5)).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 4)
+                Text("연결").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(Theme.claudeOrange, in: Capsule())
+            }
+            .padding(8)
+            .background(RoundedRectangle(cornerRadius: 9).fill(.primary.opacity(hovering ? 0.09 : 0.05)))
+            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.primary.opacity(0.08)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .padding(.top, 2)
+        .help("Claude Code 로그인 정보(키체인)로 정확한 사용량과 초기화 시각을 가져와요")
+        .accessibilityHint("키체인 접근을 물어봐요")
     }
 }
 
@@ -117,7 +138,7 @@ struct UsageBar: View {
         let about = window.estimated ? "약 " : ""
         let left = resets.timeIntervalSinceNow
         if left < 24 * 3600 { return "\(about)\(Format.duration(left)) 뒤 초기화" }
-        return "\(resets.formatted(.dateTime.weekday(.abbreviated))) \(resets.formatted(date: .omitted, time: .shortened)) 초기화"
+        return "\(about)\(resets.formatted(.dateTime.weekday(.abbreviated))) \(resets.formatted(date: .omitted, time: .shortened)) 초기화"
     }
 }
 

@@ -342,3 +342,21 @@ struct AccountUsageTests {
         #expect(PlanUsage.fromAccount(Data("nope".utf8), at: at(0)) == nil)
     }
 }
+
+@Suite("Moved weekly schedule")
+struct MovedScheduleTests {
+    func t(_ day: Int, _ h: Int, _ m: Int) -> Date {
+        Calendar.current.date(from: DateComponents(timeZone: TimeZone(identifier: "UTC"), year: 2026, month: 10, day: day, hour: h, minute: m))!
+    }
+
+    @Test func aResetOffTheOldPatternStartsANewSchedule() {
+        // Wednesdays 01:00 UTC for two weeks, then a sudden reset at 08:18 the same Wednesday.
+        let samples = [
+            Sample(at: t(23, 0, 56), fiveHour: 0, weekly: 40), Sample(at: t(23, 1, 11), fiveHour: 0, weekly: 2),
+            Sample(at: t(30, 0, 58), fiveHour: 0, weekly: 30), Sample(at: t(30, 1, 13), fiveHour: 0, weekly: 1),
+            Sample(at: t(30, 8, 16), fiveHour: 94, weekly: 22), Sample(at: t(30, 8, 21), fiveHour: 2, weekly: 0),
+        ]
+        let reset = Sample.nextWeeklyReset(samples, now: t(30, 9, 0))
+        #expect(reset == Calendar.current.date(byAdding: .day, value: 7, to: t(30, 8, 0)))
+    }
+}
