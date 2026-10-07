@@ -26,6 +26,7 @@ final class ClaudeAccount {
     private(set) var problem: String?
 
     @ObservationIgnored private var loginWindow: NSWindow?
+    @ObservationIgnored private let popups = LoginPopups()
     @ObservationIgnored private var loginWatch: Timer?
     @ObservationIgnored private var lastPoll = Date.distantPast
     @ObservationIgnored private static let enabledKey = "claudeWebLogin"
@@ -46,6 +47,7 @@ final class ClaudeAccount {
             return
         }
         let web = Self.webView(frame: NSRect(x: 0, y: 0, width: 460, height: 680))
+        web.uiDelegate = popups  // Google / Apple sign-in open their own popup windows
         web.load(URLRequest(url: Self.site.appending(path: "login")))
         let window = NSWindow(contentRect: web.frame, styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Claude 로그인 · 카피 출근부"
@@ -78,6 +80,7 @@ final class ClaudeAccount {
         loginWatch = nil
         loginWindow?.close()
         loginWindow = nil
+        popups.closeAll()
     }
 
     func signOut() {
@@ -146,9 +149,44 @@ final class ClaudeAccount {
     private static func webView(frame: NSRect) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
+        config.preferences.javaScriptCanOpenWindowsAutomatically = true
         let web = WKWebView(frame: frame, configuration: config)
         // Some sign-in providers refuse unknown embedded browsers; look like Safari.
         web.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
         return web
+    }
+}
+
+/// Gives sign-in popups (Google, Apple) a real window of their own and closes it when they finish.
+@MainActor
+final class LoginPopups: NSObject, WKUIDelegate {
+    private var windows: [NSWindow] = []
+
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        let popup = WKWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 640), configuration: configuration)
+        popup.customUserAgent = webView.customUserAgent
+        popup.uiDelegate = self
+        let window = NSWindow(contentRect: popup.frame, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "로그인"
+        window.contentView = popup
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        windows.append(window)
+        return popup
+    }
+
+    func webViewDidClose(_ webView: WKWebView) {
+        windows.removeAll { window in
+            guard window.contentView === webView else { return false }
+            window.close()
+            return true
+        }
+    }
+
+    func closeAll() {
+        windows.forEach { $0.close() }
+        windows.removeAll()
     }
 }
