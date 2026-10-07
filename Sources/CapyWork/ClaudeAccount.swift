@@ -3,116 +3,152 @@ import CapyKit
 import Foundation
 import Observation
 import Security
+import WebKit
 
-/// Optional: exact plan usage for the user's Claude account.
-/// The user makes a long-lived token with `claude setup-token` and pastes it once; it lives in
-/// CapyWork's own keychain item and is only ever sent to Anthropic's usage endpoint.
-/// Without it (or if it stops working) the panel shows the local estimate.
+/// Optional: exact plan usage, the same numbers claude.ai shows.
+/// "Claude에 로그인" opens a small claude.ai window inside CapyWork; once you're signed in it closes
+/// itself, and every few minutes a hidden page in that same session asks claude.ai for usage.
+/// The session lives only in CapyWork's own web data; "로그아웃" clears it.
 @MainActor @Observable
 final class ClaudeAccount {
     enum Status: Equatable {
         case off, checking, live
-        /// Anthropic said the token is expired or revoked.
-        case rejected
-        /// The token works but isn't allowed to read usage.
-        case forbidden
+        /// claude.ai sent us back to the login page.
+        case loggedOut
+        /// Signed in, but the usage answer didn't look right.
+        case failed
     }
 
     private(set) var status: Status
     private(set) var usage: PlanUsage?
     private(set) var checkedAt: Date?
+    /// Why the last check failed, without any of the account's data: an HTTP code or the reply's field names.
+    private(set) var problem: String?
 
+    @ObservationIgnored private var loginWindow: NSWindow?
+    @ObservationIgnored private var loginWatch: Timer?
     @ObservationIgnored private var lastPoll = Date.distantPast
+    @ObservationIgnored private static let enabledKey = "claudeWebLogin"
     static let pollEvery: TimeInterval = 180
+    static let site = URL(string: "https://claude.ai")!
 
     init() {
-        status = Keychain.read() == nil ? .off : .checking
+        status = UserDefaults.standard.bool(forKey: Self.enabledKey) ? .checking : .off
+        SecItemDelete([kSecClass: kSecClassGenericPassword, kSecAttrService: "CapyWork Claude token"] as CFDictionary)  // retired setup-token flow
     }
 
-    /// Saves a pasted `claude setup-token` token and checks it right away.
-    func connect(token: String) {
-        let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !token.isEmpty, Keychain.save(token) else { return }
-        status = .checking
-        lastPoll = .distantPast
-        Task { await poll() }
+    // MARK: Sign in
+
+    func signIn() {
+        if let loginWindow {
+            loginWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate()
+            return
+        }
+        let web = Self.webView(frame: NSRect(x: 0, y: 0, width: 460, height: 680))
+        web.load(URLRequest(url: Self.site.appending(path: "login")))
+        let window = NSWindow(contentRect: web.frame, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "Claude 로그인 · 카피 출근부"
+        window.contentView = web
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate()
+        loginWindow = window
+        loginWatch = .scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.watchLogin() }
+        }
     }
 
-    func checkNow() {
-        guard status != .off else { return }
-        status = .checking
-        lastPoll = .distantPast
-        Task { await poll() }
+    /// Signed in once claude.ai has set its session cookie; closing the window cancels.
+    private func watchLogin() {
+        guard let loginWindow, loginWindow.isVisible else { return endLogin() }
+        WKWebsiteDataStore.default().httpCookieStore.getAllCookies { cookies in
+            MainActor.assumeIsolated {
+                guard cookies.contains(where: { $0.name == "sessionKey" && $0.domain.hasSuffix("claude.ai") }) else { return }
+                self.endLogin()
+                UserDefaults.standard.set(true, forKey: Self.enabledKey)
+                self.checkNow()
+            }
+        }
     }
 
-    func disconnect() {
-        Keychain.delete()
+    private func endLogin() {
+        loginWatch?.invalidate()
+        loginWatch = nil
+        loginWindow?.close()
+        loginWindow = nil
+    }
+
+    func signOut() {
+        UserDefaults.standard.set(false, forKey: Self.enabledKey)
         usage = nil
         checkedAt = nil
         status = .off
+        let store = WKWebsiteDataStore.default()
+        store.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
+            store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                             for: records.filter { $0.displayName.contains("claude.ai") }) {}
+        }
     }
 
-    /// Opens Terminal with `claude setup-token` on the clipboard: paste, Enter, sign in once.
-    func openTerminal() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("claude setup-token", forType: .string)
-        NSWorkspace.shared.open(URL(filePath: "/System/Applications/Utilities/Terminal.app"))
+    // MARK: Usage
+
+    func checkNow() {
+        status = .checking
+        lastPoll = .distantPast
+        Task { await poll() }
     }
 
     func poll(now: Date = .now) async {
         guard status == .checking || status == .live, now.timeIntervalSince(lastPoll) > Self.pollEvery else { return }
         lastPoll = now
-        guard let token = Keychain.read() else { return settle(.off) }
-
-        var request = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!, timeoutInterval: 10)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let code = (response as? HTTPURLResponse)?.statusCode else { return }  // offline: keep the last numbers
-        switch code {
-        case 200:
-            guard let fresh = PlanUsage.fromAccount(data, at: .now) else { return settle(.forbidden) }
-            usage = fresh
-            checkedAt = .now
-            status = .live
-        case 401: settle(.rejected)
-        case 403: settle(.forbidden)
-        default: break  // a server hiccup: try again next round
+        // A throwaway page on claude.ai, so the request goes out with the session like the site's own.
+        let web = Self.webView(frame: .zero)
+        web.load(URLRequest(url: Self.site.appending(path: "api/organizations")))
+        for _ in 0..<100 where web.isLoading { try? await Task.sleep(for: .milliseconds(150)) }
+        let reply: String
+        do {
+            reply = try await web.callAsyncJavaScript(Self.usageScript, contentWorld: .page) as? String ?? ""
+        } catch {
+            return settle(.failed, problem: "script: \((error as NSError).code)")
         }
+        if reply == "signed-out" { return settle(.loggedOut) }
+        guard let fresh = PlanUsage.fromAccount(Data(reply.utf8), at: .now) else {
+            let keys = (try? JSONSerialization.jsonObject(with: Data(reply.utf8)) as? [String: Any]).map { $0.keys.sorted().joined(separator: ",") }
+            return settle(.failed, problem: reply.hasPrefix("http ") ? reply : "fields: \(keys ?? "not json")")
+        }
+        usage = fresh
+        checkedAt = .now
+        problem = nil
+        status = .live
     }
 
-    private func settle(_ status: Status) {
+    private func settle(_ status: Status, problem: String? = nil) {
+        self.problem = problem
         usage = nil
         checkedAt = .now
         self.status = status
     }
 
-    /// CapyWork's own keychain item, so macOS never has to ask for another app's secrets.
-    enum Keychain {
-        static var base: [String: Any] { [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "CapyWork Claude token",
-            kSecAttrAccount as String: "default",
-        ] }
+    /// Picks the paid (or first) organization and returns its usage JSON, or "signed-out".
+    static let usageScript = """
+        const orgs = await fetch('/api/organizations', { credentials: 'include' });
+        if (!orgs.ok) return 'signed-out';
+        const list = await orgs.json();
+        const paid = list.find(o => (o.capabilities || []).some(c => c.startsWith('claude_max') || c.startsWith('claude_pro')));
+        const org = paid || list[0];
+        if (!org) return 'signed-out';
+        const usage = await fetch(`/api/organizations/${org.uuid}/usage`, { credentials: 'include' });
+        return usage.ok ? await usage.text() : (usage.status === 401 || usage.status === 403 ? 'signed-out' : `http ${usage.status}`);
+        """
 
-        static func read() -> String? {
-            var query = base
-            query[kSecReturnData as String] = true
-            var item: CFTypeRef?
-            guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess, let data = item as? Data else { return nil }
-            return String(data: data, encoding: .utf8)
-        }
-
-        static func save(_ token: String) -> Bool {
-            delete()
-            var item = base
-            item[kSecValueData as String] = Data(token.utf8)
-            item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
-        }
-
-        static func delete() {
-            SecItemDelete(base as CFDictionary)
-        }
+    private static func webView(frame: NSRect) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .default()
+        let web = WKWebView(frame: frame, configuration: config)
+        // Some sign-in providers refuse unknown embedded browsers; look like Safari.
+        web.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+        return web
     }
 }

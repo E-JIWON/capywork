@@ -8,8 +8,8 @@ struct SessionPanel: View {
     var body: some View {
         let a = store.account
         PanelView(log: store.log, usage: store.usage, history: store.history, onOpen: store.open,
-                  account: AccountState(status: a.status, checkedAt: a.checkedAt),
-                  actions: AccountActions(connect: a.connect(token:), check: a.checkNow, openTerminal: a.openTerminal, disconnect: a.disconnect))
+                  account: AccountState(status: a.status, checkedAt: a.checkedAt, problem: a.problem),
+                  actions: AccountActions(signIn: a.signIn, check: a.checkNow, signOut: a.signOut))
     }
 }
 
