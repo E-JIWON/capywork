@@ -24,8 +24,8 @@ mkdir -p "$HOME/.claude"
 [ -f "$S" ] || echo '{}' > "$S"
 cp "$S" "$S.bak-capywork"
 had_statusline=$(/usr/bin/jq -r 'if .statusLine and (.statusLine.command | tostring | contains(".capywork") | not) then "yes" else "no" end' "$S")
-/usr/bin/jq --arg h "$D/hook.sh" --arg sl "$D/statusline.sh" '
-  def add(ev; e): .hooks[ev] = ([(.hooks[ev] // [])[] | select(any(.hooks[]?; .command == $h) | not)] + [e]);
+/usr/bin/jq --arg h "\"$D/hook.sh\"" --arg sl "\"$D/statusline.sh\"" '
+  def add(ev; e): .hooks[ev] = ([(.hooks[ev] // [])[] | select(any(.hooks[]?; .command | tostring | contains("/.capywork/hook.sh")) | not)] + [e]);
   .hooks //= {}
   | reduce ("SessionStart", "UserPromptSubmit", "Notification", "Stop", "SessionEnd") as $ev
       (.; add($ev; {hooks: [{type: "command", command: $h}]}))
@@ -35,6 +35,7 @@ had_statusline=$(/usr/bin/jq -r 'if .statusLine and (.statusLine.command | tostr
 ' "$S.bak-capywork" > "$S"
 
 echo "▸ 로그인 시 자동 실행 등록 중..."
+mkdir -p "$(dirname "$L")"
 cat > "$L" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

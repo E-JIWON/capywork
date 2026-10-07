@@ -1,30 +1,42 @@
-# 🍊 CapyWork — 카피 출근부
+# 🍊 카피 출근부 (CapyWork)
 
-Claude Code 세션마다 상단바에 카피바라가 한 마리씩 나와서, 지금 뭘 하고 있는지 보여주는 macOS 메뉴바 앱.
+**한국어** · [English](README.en.md)
 
-![poses](docs/poses.png)
+Claude Code 세션마다 맥 상단바에 카피바라가 한 마리씩 나와서, 지금 일하는 중인지 내 확인을 기다리는 중인지 보여줘요.
 
-| 상태 | 카피바라 |
-|---|---|
-| 작업 중 | 🌊 귤 얹고 헤엄 (오후 7시 이후엔 🌙) |
-| 에러 반복 | 💦 물에서 허우적 |
-| 새 답변 (안 읽음) | 🌿 풀 오물오물 |
-| 결재 대기 | 🍊 귤 굴리기 (5분 넘게 방치하면 귤이 빨갛게 깜빡) |
-| 퇴근 | 🎉 귤 던지기 |
-| 할 일 없음 | 💤 귤 얹고 낮잠 |
+![카피 출근부: 헤엄치며 일하는 카피바라, 귤 굴리며 결재를 기다리는 카피바라, 풀 먹으며 새 답변을 알리는 카피바라](docs/demo.gif)
 
-카피바라를 클릭하면 패널이 열려:
+| 카피바라 | 뜻 |
+| --- | --- |
+| 🌊 귤 얹고 헤엄 | Claude가 작업 중이에요. 오후 7시가 넘으면 🌙 달이 떠요 |
+| 🍊 귤 굴리기 | 권한 승인을 기다려요. 5분 넘게 두면 귤이 빨갛게 깜빡이고 알림이 한 번 더 와요 |
+| 🌿 풀 오물오물 | 답변이 끝났는데 아직 안 읽었어요 |
+| 💦 허우적 | 명령이 연달아 실패하고 있어요 |
+| 🎉 귤 던지기 | 세션이 끝났어요 (퇴근!) |
+| 💤 귤 얹고 낮잠 | 지금은 아무 일도 없어요 |
 
-- 확인 필요 / 작업 중 / 오늘 근무 시간
-- 5시간 · 주간 사용량과 초기화 시각
-- 세션 목록 (누르면 Claude 앱에서 그 세션이 열림)
-- 이번 주 잔디
+## 써 보기
 
-`⌃⌥⌘C` 를 누르면 결재 대기 중인 세션으로 바로 이동해.
+상단바 카피바라를 누르면 출근부가 열려요.
+
+- **확인 필요 · 작업 중 · 오늘 근무** — 한눈에 보는 숫자
+- **5시간 · 주간 사용량** — 얼마나 썼는지, 언제 초기화되는지
+- **세션 목록** — 누르면 Claude 앱에서 그 세션이 바로 열려요
+- **이번 주 잔디** — 요일별 근무 시간
+
+어디서든 `⌃⌥⌘C` 를 누르면 결재 대기 중인 세션으로 바로 가요.
 
 ## 설치
 
-필요한 것: macOS 15 이상, Xcode Command Line Tools (`xcode-select --install`), Claude Code
+### 준비물
+
+| 필요한 것 | 확인 방법 |
+| --- | --- |
+| macOS 15 (Sequoia) 이상 | 애플 메뉴 → 이 Mac에 관하여 |
+| Xcode Command Line Tools | 없으면 `xcode-select --install` |
+| Claude Code | `claude --version` |
+
+### 설치하기
 
 ```bash
 git clone https://github.com/E-JIWON/capywork.git
@@ -32,30 +44,31 @@ cd capywork
 ./install.sh
 ```
 
-소스에서 직접 빌드하기 때문에 "확인되지 않은 개발자" 경고 없이 바로 실행돼.
+내 맥에서 소스를 직접 빌드해서, "확인되지 않은 개발자" 경고 없이 바로 켜져요. 설치하면 맥을 켤 때마다 자동으로 실행돼요.
 
-- 업데이트: `git pull && ./install.sh`
-- 삭제: `./uninstall.sh`
+- **업데이트** — `git pull && ./install.sh`
+- **삭제** — `./uninstall.sh` (CapyWork가 추가한 것만 지우고, 원래 쓰던 hook과 statusLine은 그대로 둬요)
 
-## 어떻게 동작해?
+## 어떻게 동작해요?
 
-- **로그인 없음, 네트워크 없음.** 전부 내 맥 안의 파일만 읽어.
-- `install.sh` 가 `~/.claude/settings.json` 에 Claude Code hook을 등록해 (기존 hook은 그대로 두고, 원본은 `settings.json.bak-capywork` 로 백업). hook은 세션 이벤트를 `~/.capywork/log/` 에 한 줄씩 남겨.
-- 사용량은 Claude Code statusLine이 넘겨주는 `rate_limits` 와 Claude 앱의 사용량 기록을 읽어. 이미 statusLine을 쓰고 있으면 건드리지 않아 (이 경우 초기화 시각은 안 보일 수 있어).
-- 세션 제목·읽음 여부·세션 열기는 Claude 데스크톱 앱의 로컬 파일을 **읽기만** 해서 알아내. Claude 앱이 업데이트되면 이 부분은 깨질 수 있어.
-- 처음 설치할 때 `~/.claude/projects` 대화 기록으로 지난 근무 시간을 계산해서 잔디를 채워.
+- **로그인도, 네트워크도 안 써요.** 전부 내 맥 안의 파일만 읽어요.
+- `install.sh` 가 `~/.claude/settings.json` 에 Claude Code hook을 등록해요. 기존 설정은 `settings.json.bak-capywork` 로 백업해요. hook은 세션 이벤트를 `~/.capywork/log/` 에 한 줄씩 남겨요.
+- 사용량은 Claude Code statusLine이 넘겨주는 `rate_limits` 와 Claude 앱의 사용량 기록을 읽어요. 이미 statusLine을 쓰고 있으면 건드리지 않아요 (이때는 초기화 시각이 안 보일 수 있어요).
+- 세션 제목, 읽음 여부, 세션 열기는 Claude 데스크톱 앱의 로컬 파일을 **읽기만** 해요.
+- 처음 설치할 때 `~/.claude/projects` 의 대화 기록으로 지난 근무 시간을 계산해서 잔디를 채워요.
 
-## 알려진 한계
+## 알아 두면 좋아요
 
-- 터미널에서만 쓰는 세션은 읽음/안 읽음 구분이 안 돼.
-- Claude 앱 세션은 "퇴근" 신호가 안 올 수 있어.
+- 터미널에서만 쓰는 세션은 읽음/안 읽음을 구분하지 못해요.
+- Claude 앱 세션은 끝나도 퇴근 신호가 안 올 수 있어요.
+- Claude 앱이 업데이트되면 세션 제목·열기 기능이 잠깐 안 될 수 있어요. 기본 기능은 그대로 돌아가요.
 
 ## 개발
 
-- 앱: `CapyWork.swift` 한 파일 (SwiftUI `MenuBarExtra`)
+- 앱 전체가 `CapyWork.swift` 한 파일이에요 (SwiftUI `MenuBarExtra`)
 - 자체 테스트: `swiftc -parse-as-library CapyWork.swift -o /tmp/capywork && /tmp/capywork --selftest`
-- 카피바라 도트: `tools/capy.py` (도형 조합으로 프레임 생성)
+- 카피바라 도트는 `tools/capy.py` 가 도형을 조합해서 그려요. 전체 동작은 [docs/poses.png](docs/poses.png) 에 있어요.
 
 ---
 
-Anthropic과 관계없는 개인 프로젝트예요. Claude는 Anthropic의 상표입니다.
+Anthropic과 관계없는 개인 프로젝트예요. Claude는 Anthropic의 상표예요.
