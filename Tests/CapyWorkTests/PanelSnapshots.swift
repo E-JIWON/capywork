@@ -58,8 +58,9 @@ struct PanelSnapshots {
             session("c", .working, title: "[봉칠] 타이핑", task: "e2e 테스트에서 오류 있는지 봐줘", ago: 360),
             session("d", .working, title: "", task: "빌드가 계속 깨져", ago: 50, fails: 3, desktop: false),
             session("e", .idle, title: "진상손님 대처", task: "전부 다 했어?", ago: 3600),
+            session("f", .idle, title: "[봉칠] 쾌락실 - 완료", task: "푸시까지만 해주고 마무리", ago: 7200),
         ]
-        let usage = PlanUsage(fiveHour: UsageWindow(percent: 86, resetsAt: now + 2 * 3600 + 600),
+        let usage = PlanUsage(fiveHour: UsageWindow(percent: 86, resetsAt: now + 2 * 3600 + 600, estimated: true),
                               weekly: UsageWindow(percent: 41, resetsAt: now + 3 * 86400))
         try save("panel-busy", PanelView(log: log(sessions), usage: usage, history: week, onOpen: { _ in }))
     }

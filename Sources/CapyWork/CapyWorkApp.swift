@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        Notifier.shared.start()
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView: SessionPanel(store: store))
         item.button?.target = self

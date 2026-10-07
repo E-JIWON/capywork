@@ -37,7 +37,7 @@ struct EndToEndTests {
         _ = Self.home
         let store = SessionStore()
         var notes: [String] = []
-        store.notify = { title, _ in notes.append(title) }
+        store.notify = { title, _, _ in notes.append(title) }
         let start = Date.now
 
         try hook("SessionStart")
@@ -85,7 +85,7 @@ struct EndToEndTests {
         let resets = Int(Date.now.timeIntervalSince1970) + 3600
         try run("statusline.sh", #"{"model":{},"rate_limits":{"five_hour":{"used_percentage":42,"resets_at":\#(resets)}}}"#)
         let store = SessionStore()
-        store.notify = { _, _ in }
+        store.notify = { _, _, _ in }
         store.refresh()
         // The percent may come from the Claude app's newer sample; the reset time only exists here.
         #expect(store.usage.fiveHour?.resetsAt == Date(timeIntervalSince1970: TimeInterval(resets)))

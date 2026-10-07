@@ -1,20 +1,20 @@
 import CapyKit
 import SwiftUI
 
-struct StatTile: View {
-    let value: String
-    let caption: String
+struct CountChip: View {
+    let count: Int
+    let label: String
+    let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value)
-                .font(.system(size: 17, weight: .semibold, design: .rounded)).monospacedDigit()
-                .lineLimit(1).minimumScaleFactor(0.6)
-            Text(caption).font(.system(size: 10.5)).foregroundStyle(.secondary)
+        let color = count > 0 ? tint : Color.secondary
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text("\(label) \(count)").font(.system(size: 12, weight: .semibold)).monospacedDigit()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10).padding(.vertical, 8)
-        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+        .foregroundStyle(count > 0 ? AnyShapeStyle(color) : AnyShapeStyle(.tertiary))
+        .padding(.horizontal, 9).padding(.vertical, 5)
+        .background(color.opacity(count > 0 ? 0.14 : 0.06), in: Capsule())
         .accessibilityElement(children: .combine)
     }
 }
@@ -40,7 +40,8 @@ struct UsageBar: View {
             Text("\(Int(percent.rounded()))%").font(.system(size: 11, weight: .semibold)).monospacedDigit()
                 .frame(width: 34, alignment: .trailing)
             Text(resetText).font(.system(size: 10.5)).monospacedDigit().foregroundStyle(.tertiary)
-                .frame(width: 104, alignment: .trailing)
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .frame(width: 118, alignment: .trailing)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title) 사용량")
@@ -48,9 +49,10 @@ struct UsageBar: View {
     }
 
     private var resetText: String {
-        guard let resets = window.resetsAt else { return "초기화 시각 모름" }
+        guard let resets = window.resetsAt else { return "" }
+        let about = window.estimated ? "약 " : ""
         let left = resets.timeIntervalSinceNow
-        if left < 24 * 3600 { return "\(Format.duration(left)) 뒤 초기화" }
+        if left < 24 * 3600 { return "\(about)\(Format.duration(left)) 뒤 초기화" }
         return "\(resets.formatted(.dateTime.weekday(.abbreviated))) \(resets.formatted(date: .omitted, time: .shortened)) 초기화"
     }
 }

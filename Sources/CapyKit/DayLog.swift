@@ -28,6 +28,8 @@ public struct DayLog: Sendable {
 
         /// Sessions killed without a SessionEnd would linger forever; drop them after this much silence.
         static let staleAfter: TimeInterval = 3 * 3600
+        /// Interrupting a turn (Esc) sends no Stop, so "working" with this much silence has really stopped.
+        static let stallAfter: TimeInterval = 10 * 60
 
         mutating func apply(_ line: Substring) {
             guard let o = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
@@ -52,8 +54,9 @@ public struct DayLog: Sendable {
                 s.failStreak = event == "PostToolUse" ? 0 : s.failStreak + 1
                 workStart[id] = workStart[id] ?? t
             case "Notification":
-                // The 60s "waiting for your input" ping is just idle; only permission prompts wait on you.
+                // Only permission prompts wait on you; the "waiting for your input" ping means the turn is over.
                 if (o["msg"] as? String ?? "").contains("permission") { s.state = .waiting }
+                else if s.state == .working { s.state = .idle }
             case "Stop":
                 s.state = .idle
                 s.finishedAt = t
@@ -76,7 +79,16 @@ public struct DayLog: Sendable {
 
         func snapshot(now: Date) -> DayLog {
             var out = log
-            for (id, start) in workStart where sessions[id] != nil { out.workTime += now.timeIntervalSince(start) }
+            var sessions = sessions
+            for (id, start) in workStart {
+                guard let s = sessions[id] else { continue }
+                let stalled = now.timeIntervalSince(s.lastEvent) > Self.stallAfter
+                out.workTime += (stalled ? s.lastEvent : now).timeIntervalSince(start)
+                if stalled && s.state == .working {
+                    sessions[id]?.state = .idle
+                    sessions[id]?.since = s.lastEvent
+                }
+            }
             out.sessions = sessions.values
                 .filter { now.timeIntervalSince($0.lastEvent) < Self.staleAfter }
                 .sorted(by: Session.byUrgency)

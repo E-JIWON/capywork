@@ -10,7 +10,9 @@ final class SessionStore {
     /// The menu bar capybaras. Only reassigned when the picture actually changes.
     private(set) var cast = Cast.napping
     @ObservationIgnored var onCastChange: ((Cast) -> Void)?
-    @ObservationIgnored var notify: (_ title: String, _ body: String) -> Void = Notifier.post
+    @ObservationIgnored var notify: @MainActor (_ title: String, _ body: String, _ open: URL?) -> Void = {
+        Notifier.shared.post(title: $0, body: $1, open: $2)
+    }
     @ObservationIgnored var openURL: (URL) -> Void = { NSWorkspace.shared.open($0) }
 
     @ObservationIgnored private var desktop: [String: DesktopSession] = [:]
@@ -138,10 +140,10 @@ final class SessionStore {
     private func notifyIfNeeded(now: Date) {
         let waiting = log.sessions.filter { $0.state == .waiting }
         for s in waiting where !notifiedWaiting.contains(s.id) {
-            notify("결재 대기 · \(s.name)", "Claude가 권한 승인을 기다리고 있어요")
+            notify("결재 대기 · \(s.name)", "Claude가 권한 승인을 기다리고 있어요", s.desktopID.flatMap(DesktopSession.openURL(for:)))
         }
         for s in waiting where s.isNeglected(now: now) && !notifiedNeglect.contains(s.id) {
-            notify("결재 5분째 대기 · \(s.name)", "귤이 빨개지고 있어요 🍊")
+            notify("결재 5분째 대기 · \(s.name)", "귤이 빨개지고 있어요 🍊", s.desktopID.flatMap(DesktopSession.openURL(for:)))
             notifiedNeglect.insert(s.id)
         }
         notifiedWaiting = Set(waiting.map(\.id))

@@ -235,3 +235,62 @@ struct DayLogReaderTests {
         #expect(reader.read(day, now: at(8)).sessions.map(\.id) == ["new"], "a shorter file starts over")
     }
 }
+
+@Suite("Reset estimates")
+struct ResetEstimateTests {
+    let cal = Calendar.current
+    func t(_ day: Int, _ h: Int, _ m: Int) -> Date {
+        cal.date(from: DateComponents(timeZone: TimeZone(identifier: "UTC"), year: 2026, month: 10, day: day, hour: h, minute: m))!
+    }
+    func s(_ d: Date, _ fh: Double, _ sd: Double = 0) -> Sample { Sample(at: d, fiveHour: fh, weekly: sd) }
+
+    @Test func fiveHourWindowFromFirstUseAfterZero() {
+        let samples = [s(t(7, 5, 46), 60), s(t(7, 6, 1), 0), s(t(7, 6, 21), 7), s(t(7, 6, 41), 12)]
+        #expect(Sample.nextFiveHourReset(samples, now: t(7, 7, 0)) == t(7, 11, 0))
+    }
+
+    @Test func fiveHourWindowFromADropWithoutZero() {
+        let samples = [s(t(7, 5, 50), 60), s(t(7, 6, 5), 4), s(t(7, 6, 20), 9)]
+        #expect(Sample.nextFiveHourReset(samples, now: t(7, 7, 0)) == t(7, 10, 0))
+    }
+
+    @Test func noFiveHourGuessAfterALongGapOrWhenUnused() {
+        #expect(Sample.nextFiveHourReset([s(t(6, 4, 0), 0), s(t(7, 1, 30), 3)], now: t(7, 2, 0)) == nil)
+        #expect(Sample.nextFiveHourReset([s(t(7, 1, 0), 9), s(t(7, 1, 20), 0)], now: t(7, 2, 0)) == nil)
+    }
+
+    @Test func weeklyResetFromOverlappingDrops() {
+        // Real pattern: Wednesdays ~01:00 UTC, one week seen only through a 30h gap.
+        let samples = [
+            s(t(16, 0, 43), 0, 30), s(t(16, 1, 16), 0, 1),
+            s(t(23, 0, 56), 0, 40), s(t(23, 1, 11), 0, 2),
+            s(t(29, 19, 6), 0, 16), s(t(31, 1, 31), 0, 0),
+        ]
+        let now = t(31, 6, 0)
+        #expect(Sample.nextWeeklyReset(samples, now: now).map { Calendar.current.dateComponents(in: TimeZone(identifier: "UTC")!, from: $0).hour } == 1)
+        #expect(Sample.nextWeeklyReset(samples, now: now)! > now)
+    }
+
+    @Test func noWeeklyGuessFromOneVagueDrop() {
+        #expect(Sample.nextWeeklyReset([s(t(5, 4, 0), 0, 16), s(t(7, 1, 31), 0, 0)], now: t(7, 6, 0)) == nil)
+    }
+}
+
+@Suite("Stalled turns")
+struct StalledTests {
+    let interrupted = [event(0, "UserPromptSubmit", "s", extra: #","prompt":"go""#), event(60, "PostToolUse", "s")].joined(separator: "\n")
+
+    @Test func silentWorkingSessionStopsCountingAfterTenMinutes() {
+        let early = DayLog.parse(interrupted, now: at(300))
+        #expect(early.sessions.first?.state == .working)
+        let late = DayLog.parse(interrupted, now: at(60 + 11 * 60))
+        #expect(late.sessions.first?.state == .idle)
+        #expect(late.sessions.first?.finishedAt == nil, "an interrupted turn is not a new answer")
+        #expect(late.workTime == 60, "work time stops at the last sign of life")
+    }
+
+    @Test func inputPingEndsAWorkingTurn() {
+        let log = interrupted + "\n" + event(120, "Notification", "s", extra: #","msg":"Claude is waiting for your input""#)
+        #expect(DayLog.parse(log, now: at(130)).sessions.first?.state == .idle)
+    }
+}
