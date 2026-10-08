@@ -1,6 +1,6 @@
 <img src="docs/icon.png" width="128" alt="카피 코드 바라 아이콘: 밤하늘 아래 귤을 얹고 자는 카피바라">
 
-# 🍊 카피 코드 바라 (CapyWork)
+# 카피 코드 바라 (CapyWork)
 
 [![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) [![MIT](https://img.shields.io/github/license/E-JIWON/capywork?color=2ea043)](LICENSE) [![Homebrew](https://img.shields.io/badge/Homebrew-e--jiwon%2Ftap-FBB040?logo=homebrew&logoColor=white)](https://github.com/E-JIWON/homebrew-tap)
 
@@ -12,12 +12,12 @@ Claude Code 세션마다 맥 상단바에 카피바라가 한 마리씩 나와�
 
 | 카피바라 | 뜻 |
 | --- | --- |
-| 🌊 귤 얹고 헤엄 | Claude가 작업 중이에요. 오후 7시가 넘으면 🌙 달이 떠요 |
-| 🍊 귤 굴리기 | 권한 승인을 기다려요. 5분 넘게 두면 귤이 빨갛게 깜빡이고 알림이 한 번 더 와요 |
-| 🌿 풀 오물오물 | 답변이 끝났는데 아직 안 읽었어요 |
-| 💦 허우적 | 명령이 연달아 실패하고 있어요 |
-| 🎉 귤 던지기 | 세션이 끝났어요 (퇴근!) |
-| 💤 귤 얹고 낮잠 | 지금은 아무 일도 없어요 |
+| 귤 얹고 헤엄 | Claude가 작업 중이에요. 오후 7시가 넘으면 달이 떠요 |
+| 귤 굴리기 | 권한 승인을 기다려요. 5분 넘게 두면 귤이 빨갛게 깜빡이고 알림이 한 번 더 와요 |
+| 풀 오물오물 | 답변이 끝났는데 아직 안 읽었어요 |
+| 허우적 | 명령이 연달아 실패하고 있어요 |
+| 귤 던지기 | 세션이 끝났어요 (퇴근!) |
+| 귤 얹고 낮잠 | 지금은 아무 일도 없어요 |
 
 ## 써 보기
 
@@ -69,7 +69,7 @@ cd capywork
 ## 어떻게 동작해요?
 
 - **기본은 로그인도, 네트워크도 안 써요.** 전부 내 맥 안의 파일만 읽어요.
-- **(선택) Claude에 로그인하고 정확하게 보기** — 패널의 🔑 **로그인** 을 누르면 카피 코드 바라 안에 claude.ai 로그인 창이 떠요. **처음 한 번만** 로그인하면 창이 저절로 닫히고, 3분마다 claude.ai와 같은 사용률·초기화 시각을 보여줘요 (🟢 실시간). 로그인은 카피 코드 바라 전용 브라우저에만 저장되고, 「로그아웃」을 누르면 지워져요. Google 로그인이 막히면 「이메일로 계속하기」를 써 주세요.
+- **(선택) Claude에 로그인하고 정확하게 보기** — 패널의 **로그인** 을 누르면 카피 코드 바라 안에 claude.ai 로그인 창이 떠요. **처음 한 번만** 로그인하면 창이 저절로 닫히고, 3분마다 claude.ai와 같은 사용률·초기화 시각을 보여줘요 (실시간). 로그인은 카피 코드 바라 전용 브라우저에만 저장되고, 「로그아웃」을 누르면 지워져요. Google 로그인이 막히면 「이메일로 계속하기」를 써 주세요.
 - `capywork-setup` (소스 설치는 `install.sh`) 이 `~/.claude/settings.json` 에 Claude Code hook을 등록해요. 기존 설정은 `settings.json.bak-capywork` 로 백업해요. hook은 세션 이벤트를 `~/.capywork/log/` 에 한 줄씩 남겨요.
 - 사용량은 Claude Code statusLine이 넘겨주는 `rate_limits` 와 Claude 앱의 사용량 기록을 읽어요. statusLine 값이 없으면 사용량이 0으로 떨어지는 순간을 찾아 초기화 시각을 추정해요 (「약」이 붙어요). 이미 쓰는 statusLine은 건드리지 않아요.
 - 세션 제목, 읽음 여부, 세션 열기는 Claude 데스크톱 앱의 로컬 파일을 **읽기만** 해요.

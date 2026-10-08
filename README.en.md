@@ -1,6 +1,6 @@
 <img src="docs/icon.png" width="128" alt="CapyWork icon: a capybara napping with a yuzu under a night sky">
 
-# 🍊 CapyWork (카피 코드 바라)
+# CapyWork (카피 코드 바라)
 
 [![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) [![MIT](https://img.shields.io/github/license/E-JIWON/capywork?color=2ea043)](LICENSE) [![Homebrew](https://img.shields.io/badge/Homebrew-e--jiwon%2Ftap-FBB040?logo=homebrew&logoColor=white)](https://github.com/E-JIWON/homebrew-tap)
 
@@ -12,12 +12,12 @@ A macOS menu bar app that gives every Claude Code session its own pixel capybara
 
 | Capybara | Meaning |
 | --- | --- |
-| 🌊 Swimming with a yuzu | Claude is working. After 7 pm a 🌙 moon comes out |
-| 🍊 Rolling a yuzu | Waiting for your permission. After 5 minutes the yuzu flashes red and you get a second notification |
-| 🌿 Munching grass | A turn finished and you haven't read it yet |
-| 💦 Flailing | Tool calls keep failing |
-| 🎉 Tossing the yuzu | The session ended (clocked out!) |
-| 💤 Napping with a yuzu | Nothing going on |
+| Swimming with a yuzu | Claude is working. After 7 pm a moon comes out |
+| Rolling a yuzu | Waiting for your permission. After 5 minutes the yuzu flashes red and you get a second notification |
+| Munching grass | A turn finished and you haven't read it yet |
+| Flailing | Tool calls keep failing |
+| Tossing the yuzu | The session ended (clocked out!) |
+| Napping with a yuzu | Nothing going on |
 
 ## Using it
 
@@ -69,7 +69,7 @@ The app lands in `~/Applications/CapyWork.app` and starts at login.
 ## How it works
 
 - **By default, no login and no network.** It only reads files on your Mac.
-- **(Optional) sign in for exact numbers** — the panel's 🔑 **Log in** opens a small claude.ai window inside CapyWork. Sign in **once**; the window closes itself and the panel shows the same usage and reset times as claude.ai, refreshed every 3 minutes (🟢 live). The session is kept only in CapyWork's own browser storage and "Log out" clears it. If Google sign-in is blocked, use "Continue with email".
+- **(Optional) sign in for exact numbers** — the panel's **Log in** opens a small claude.ai window inside CapyWork. Sign in **once**; the window closes itself and the panel shows the same usage and reset times as claude.ai, refreshed every 3 minutes (live). The session is kept only in CapyWork's own browser storage and "Log out" clears it. If Google sign-in is blocked, use "Continue with email".
 - `capywork-setup` (or `install.sh`) registers Claude Code hooks in `~/.claude/settings.json` (backed up to `settings.json.bak-capywork`). The hooks append session events to `~/.capywork/log/`.
 - Plan usage comes from the `rate_limits` Claude Code passes to its statusLine, plus the Claude app's usage history. Without statusLine data, reset times are estimated from where usage drops to zero (shown with "약", about). An existing statusLine is left alone.
 - Session titles, read state, and "open session" come from the Claude desktop app's local files, **read-only**.
