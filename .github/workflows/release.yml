@@ -1,6 +1,6 @@
 name: release
 
-# Actions → release → Run workflow: tags main as v<version> and publishes a GitHub release.
+# Actions → release → Run workflow: tags main as v<version> and publishes a GitHub release with the source tarball attached.
 on:
   workflow_dispatch:
     inputs:
@@ -24,8 +24,18 @@ jobs:
           V: ${{ inputs.version }}
           NOTES: ${{ inputs.notes }}
         run: |
+          # Homebrew formula downloads this asset instead of the archive/ link, so installs show up in release download counts.
+          TARBALL="capywork-$V.tar.gz"
+          git archive --format=tar.gz --prefix="capywork-$V/" -o "$TARBALL" "$GITHUB_SHA"
           if [ -n "$NOTES" ]; then
-            gh release create "v$V" --target "$GITHUB_SHA" --title "v$V" --notes "$NOTES"
+            gh release create "v$V" "$TARBALL" --target "$GITHUB_SHA" --title "v$V" --notes "$NOTES"
           else
-            gh release create "v$V" --target "$GITHUB_SHA" --title "v$V" --generate-notes
+            gh release create "v$V" "$TARBALL" --target "$GITHUB_SHA" --title "v$V" --generate-notes
           fi
+          {
+            echo "### homebrew-tap Formula/capywork.rb"
+            echo '```ruby'
+            echo "  url \"https://github.com/$GITHUB_REPOSITORY/releases/download/v$V/$TARBALL\""
+            echo "  sha256 \"$(sha256sum "$TARBALL" | cut -d' ' -f1)\""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
