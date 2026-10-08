@@ -11,5 +11,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: swift --version
-      - run: swift build -c release --product CapyWork
+      - run: scripts/bundle.sh "$RUNNER_TEMP/CapyWork.app" && test -x "$RUNNER_TEMP/CapyWork.app/Contents/MacOS/CapyWork"
       - run: swift test

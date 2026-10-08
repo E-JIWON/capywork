@@ -8,6 +8,7 @@ public enum Paths {
         ProcessInfo.processInfo.environment["CAPYWORK_HOME"].map { URL(filePath: $0) } ?? home.appending(path: ".capywork")
     }
     public static var backfill: URL { root.appending(path: "backfill.json") }
+    public static var hidden: URL { root.appending(path: "hidden.json") }
     public static var statusLineSnapshot: URL { root.appending(path: "limits.json") }
 
     public static let claudeApp = home.appending(path: "Library/Application Support/Claude")

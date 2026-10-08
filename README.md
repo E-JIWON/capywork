@@ -2,7 +2,7 @@
 
 # 🍊 카피 출근부 (CapyWork)
 
-[![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) [![MIT](https://img.shields.io/github/license/E-JIWON/capywork?color=2ea043)](LICENSE)
+[![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) [![MIT](https://img.shields.io/github/license/E-JIWON/capywork?color=2ea043)](LICENSE) [![Homebrew](https://img.shields.io/badge/Homebrew-e--jiwon%2Ftap-FBB040?logo=homebrew&logoColor=white)](https://github.com/E-JIWON/homebrew-tap)
 
 **한국어** · [English](README.en.md)
 
@@ -25,7 +25,8 @@ Claude Code 세션마다 맥 상단바에 카피바라가 한 마리씩 나와�
 
 - **오늘 근무 시간** 과 **확인 · 작업** 배지 — 결재 대기가 있으면 확인 배지가 빨개져요
 - **5시간 · 주간 사용량** — 얼마나 썼는지, 언제 초기화되는지
-- **세션 목록** — 누르면 Claude 앱에서 그 세션이 바로 열려요. 읽은 지 30분 넘은 세션은 「지난 세션」으로 접혀요
+- **세션 목록** — 누르면 Claude 앱에서 그 세션이 바로 열려요. 쉬는 중이고 다 읽었고 30분 넘게 조용한 세션은 「지난 세션」으로 접혀요
+  - 세션을 **우클릭 → 숨기기** 하면 목록과 상단바에서 바로 빠져요. 다시 결재를 기다리거나 새 답변이 오면 저절로 돌아와요. 카피 출근부에서만 숨겨지고 Claude 앱은 그대로예요. 「지난 세션」을 펼쳐서 우클릭 → 다시 보이기로 되돌릴 수 있어요
 - **이번 주 잔디** — 요일별 근무 시간
 
 카피바라를 **우클릭**하면 결재 대기 중인 세션으로 바로 가요. 알림을 눌러도 그 세션이 열려요.
@@ -40,7 +41,19 @@ Claude Code 세션마다 맥 상단바에 카피바라가 한 마리씩 나와�
 | Xcode Command Line Tools | 없으면 `xcode-select --install` |
 | Claude Code | `claude --version` |
 
-### 설치하기
+### Homebrew로 설치 (추천)
+
+```bash
+brew install e-jiwon/tap/capywork
+capywork-setup
+```
+
+`brew install` 이 내 맥에서 소스를 빌드하고 (1~2분), `capywork-setup` 이 Claude Code hook 연결 · 자동 실행 등록 · 잔디 채우기를 해요. 내 맥에서 빌드하니까 "확인되지 않은 개발자" 경고 없이 바로 켜져요. 처음 켜질 때 알림 허용을 물어보면 **허용**을 눌러 주세요.
+
+- **업데이트** — `brew upgrade capywork && capywork-setup`
+- **삭제** — `capywork-setup --uninstall && brew uninstall capywork` (CapyWork가 추가한 것만 지우고, 원래 쓰던 hook과 statusLine은 그대로 둬요)
+
+### 소스로 설치
 
 ```bash
 git clone https://github.com/E-JIWON/capywork.git
@@ -48,16 +61,16 @@ cd capywork
 ./install.sh
 ```
 
-내 맥에서 소스를 직접 빌드해서, "확인되지 않은 개발자" 경고 없이 바로 켜져요. 앱은 `~/Applications/CapyWork.app` 에 설치되고, 맥을 켤 때마다 자동으로 실행돼요. 처음 켜질 때 알림 허용을 물어보면 **허용**을 눌러 주세요.
+앱은 `~/Applications/CapyWork.app` 에 설치되고, 맥을 켤 때마다 자동으로 실행돼요.
 
 - **업데이트** — `git pull && ./install.sh`
-- **삭제** — `./uninstall.sh` (CapyWork가 추가한 것만 지우고, 원래 쓰던 hook과 statusLine은 그대로 둬요)
+- **삭제** — `./uninstall.sh`
 
 ## 어떻게 동작해요?
 
 - **기본은 로그인도, 네트워크도 안 써요.** 전부 내 맥 안의 파일만 읽어요.
 - **(선택) Claude에 로그인하고 정확하게 보기** — 패널의 🔑 **로그인** 을 누르면 카피 출근부 안에 claude.ai 로그인 창이 떠요. **처음 한 번만** 로그인하면 창이 저절로 닫히고, 3분마다 claude.ai와 같은 사용률·초기화 시각을 보여줘요 (🟢 실시간). 로그인은 카피 출근부 전용 브라우저에만 저장되고, 「로그아웃」을 누르면 지워져요. Google 로그인이 막히면 「이메일로 계속하기」를 써 주세요.
-- `install.sh` 가 `~/.claude/settings.json` 에 Claude Code hook을 등록해요. 기존 설정은 `settings.json.bak-capywork` 로 백업해요. hook은 세션 이벤트를 `~/.capywork/log/` 에 한 줄씩 남겨요.
+- `capywork-setup` (소스 설치는 `install.sh`) 이 `~/.claude/settings.json` 에 Claude Code hook을 등록해요. 기존 설정은 `settings.json.bak-capywork` 로 백업해요. hook은 세션 이벤트를 `~/.capywork/log/` 에 한 줄씩 남겨요.
 - 사용량은 Claude Code statusLine이 넘겨주는 `rate_limits` 와 Claude 앱의 사용량 기록을 읽어요. statusLine 값이 없으면 사용량이 0으로 떨어지는 순간을 찾아 초기화 시각을 추정해요 (「약」이 붙어요). 이미 쓰는 statusLine은 건드리지 않아요.
 - 세션 제목, 읽음 여부, 세션 열기는 Claude 데스크톱 앱의 로컬 파일을 **읽기만** 해요.
 - 처음 설치할 때 `~/.claude/projects` 의 대화 기록으로 지난 근무 시간을 계산해서 잔디를 채워요.

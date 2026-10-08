@@ -211,23 +211,23 @@ struct WeekGrass: View {
         let today = Calendar.current.startOfDay(for: .now)
         let days = WorkHistory.week(containing: today)
         let total = days.reduce(0) { $0 + (history[$1] ?? 0) }
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Text("이번 주 잔디").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
                 Spacer()
                 Text("합계 \(Format.duration(total))").font(.system(size: 11)).monospacedDigit().foregroundStyle(.tertiary)
             }
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 ForEach(days, id: \.self) { day in
                     let worked = history[day] ?? 0
-                    VStack(spacing: 4) {
-                        RoundedRectangle(cornerRadius: 4)
+                    VStack(spacing: 2) {
+                        RoundedRectangle(cornerRadius: 3)
                             .fill(day > today ? Color.primary.opacity(0.04) : shade(worked))
-                            .frame(height: 22)
-                            .overlay(RoundedRectangle(cornerRadius: 4)
+                            .frame(height: 10)
+                            .overlay(RoundedRectangle(cornerRadius: 3)
                                 .strokeBorder(Color.primary.opacity(day == today ? 0.45 : 0), lineWidth: 1))
                         Text(day.formatted(.dateTime.weekday(.narrow)))
-                            .font(.system(size: 10, weight: day == today ? .semibold : .regular))
+                            .font(.system(size: 9, weight: day == today ? .semibold : .regular))
                             .foregroundStyle(day == today ? .primary : .tertiary)
                     }
                     .frame(maxWidth: .infinity)

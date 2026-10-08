@@ -4,6 +4,7 @@ import SwiftUI
 struct SessionRow: View {
     let session: Session
     let onOpen: () -> Void
+    var onHide: () -> Void = {}
 
     @State private var hovering = false
     @State private var pulsing = false
@@ -40,9 +41,13 @@ struct SessionRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button(session.hidden ? "다시 보이기" : "숨기기", action: onHide)
+        }
         .onHover { hovering = $0 }
         .accessibilityElement(children: .combine)
         .accessibilityHint(openable ? "Claude 앱에서 열기" : "")
+        .accessibilityAction(named: session.hidden ? "다시 보이기" : "숨기기", onHide)
     }
 
     private var elapsed: String {
