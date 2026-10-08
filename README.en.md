@@ -2,7 +2,7 @@
 
 # 🍊 CapyWork (카피 출근부)
 
-[![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange)
+[![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) [![MIT](https://img.shields.io/github/license/E-JIWON/capywork?color=2ea043)](LICENSE)
 
 [한국어](README.md) · **English**
 
