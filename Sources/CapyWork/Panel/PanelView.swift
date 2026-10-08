@@ -40,12 +40,9 @@ struct PanelView: View {
             }
 
             HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(Format.duration(log.workTime))
-                        .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
-                    Text("오늘 근무").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-                .accessibilityElement(children: .combine)
+                Text(Format.duration(log.workTime))
+                    .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .accessibilityLabel("오늘 근무 \(Format.duration(log.workTime))")
                 Spacer()
                 CountChip(count: sessions.filter(\.needsYou).count, label: "확인",
                           tint: sessions.contains { $0.state == .waiting } ? .red : .blue)
