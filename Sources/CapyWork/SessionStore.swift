@@ -24,6 +24,8 @@ final class SessionStore {
     @ObservationIgnored private var notifiedNeglect: Set<String> = []
     @ObservationIgnored private var celebrated: Set<String> = []
     @ObservationIgnored private var archived: Set<String> = []
+    /// Session id → when it was hidden. Saved so hiding survives a relaunch.
+    @ObservationIgnored private var hidden: [String: Date] = SessionStore.loadHidden()
     @ObservationIgnored private var firstRefresh = true
     @ObservationIgnored private var historyDay = Date.distantPast
     @ObservationIgnored private var backfillToday: TimeInterval = 0
@@ -44,7 +46,7 @@ final class SessionStore {
     }
 
     var summary: String {
-        let s = log.sessions
+        let s = log.sessions.filter { !$0.hidden }
         let parts = [("결재 대기", s.filter { $0.state == .waiting }.count),
                      ("새 답변", s.filter(\.hasUnread).count),
                      ("작업 중", s.filter { $0.state == .working }.count)]
@@ -69,7 +71,7 @@ final class SessionStore {
         usage = account.usage ?? PlanUsage.read(now: now)
         notifyIfNeeded(now: now)
         trackClockOuts(now: now)
-        let fast = log.sessions.contains { $0.isNeglected(now: now) }
+        let fast = log.sessions.contains { $0.isActive && $0.isNeglected(now: now) }
         setAnimating(log.sessions.contains(where: \.isActive) || !clockOuts.isEmpty, fast: fast)
         updateCast(now: now)
     }
@@ -107,9 +109,21 @@ final class SessionStore {
         refresh()
     }
 
+    /// Hides a session from CapyWork only; the Claude app and the session itself are untouched.
+    func setHidden(_ session: Session, _ on: Bool) {
+        if on {
+            hidden[session.id] = .now
+            seenAt[session.id] = .now
+        } else {
+            hidden[session.id] = nil
+        }
+        saveHidden()
+        refresh()
+    }
+
     /// Sessions are sorted by urgency, so the first one the Claude app can open is the target.
     func openMostUrgent() {
-        guard let session = log.sessions.first(where: { $0.desktopID != nil }) else { return NSSound.beep() }
+        guard let session = log.sessions.first(where: { $0.desktopID != nil && !$0.hidden }) else { return NSSound.beep() }
         open(session)
     }
 
@@ -157,11 +171,31 @@ final class SessionStore {
             if !firstRefresh, log.sessions.contains(where: { $0.id == d.cliID }) { log.ended.append((d.cliID, now)) }
         }
         log.sessions.removeAll { archived.contains($0.id) }
+        // A hidden session comes back once it changes state into something that needs you or works.
+        for i in log.sessions.indices {
+            let s = log.sessions[i]
+            guard let at = hidden[s.id] else { continue }
+            if s.since > at && (s.state != .idle || s.hasUnread) {
+                hidden[s.id] = nil
+                saveHidden()
+            } else {
+                log.sessions[i].hidden = true
+            }
+        }
         log.sessions.sort(by: Session.byUrgency)
     }
 
+    nonisolated private static func loadHidden() -> [String: Date] {
+        (try? JSONDecoder().decode([String: Date].self, from: Data(contentsOf: Paths.hidden))) ?? [:]
+    }
+
+    private func saveHidden() {
+        hidden = hidden.filter { Date.now.timeIntervalSince($0.value) < 7 * 86400 }
+        try? JSONEncoder().encode(hidden).write(to: Paths.hidden, options: .atomic)
+    }
+
     private func notifyIfNeeded(now: Date) {
-        let waiting = log.sessions.filter { $0.state == .waiting }
+        let waiting = log.sessions.filter { $0.state == .waiting && !$0.hidden }
         for s in waiting where !notifiedWaiting.contains(s.id) {
             notify("결재 대기 · \(s.name)", "Claude가 권한 승인을 기다리고 있어요", s.desktopID.flatMap(DesktopSession.openURL(for:)))
         }

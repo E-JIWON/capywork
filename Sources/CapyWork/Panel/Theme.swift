@@ -7,6 +7,7 @@ enum Theme {
 
 extension Session {
     var tint: Color {
+        if hidden { return .secondary }
         if isFlailing { return .red }
         if hasUnread { return .blue }
         switch state {
@@ -17,6 +18,7 @@ extension Session {
     }
 
     var statusText: String {
+        if hidden { return "숨김" }
         if isFlailing { return "에러 반복" }
         if hasUnread { return "새 답변" }
         switch state {

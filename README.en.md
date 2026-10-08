@@ -2,7 +2,7 @@
 
 # 🍊 CapyWork (카피 출근부)
 
-[![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) [![MIT](https://img.shields.io/github/license/E-JIWON/capywork?color=2ea043)](LICENSE)
+[![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) [![MIT](https://img.shields.io/github/license/E-JIWON/capywork?color=2ea043)](LICENSE) [![Homebrew](https://img.shields.io/badge/Homebrew-e--jiwon%2Ftap-FBB040?logo=homebrew&logoColor=white)](https://github.com/E-JIWON/homebrew-tap)
 
 [한국어](README.md) · **English**
 
@@ -25,7 +25,8 @@ Click a capybara to open the attendance board:
 
 - **Today's work time** plus **needs-you · working** badges (red while an approval waits)
 - **5-hour and weekly plan usage**, with reset times
-- **Session list**: click one to jump to it in the Claude app. Sessions read more than 30 minutes ago fold under "past sessions"
+- **Session list**: click one to jump to it in the Claude app. Idle, read sessions quiet for 30+ minutes fold under "past sessions"
+  - **Right-click → Hide** drops a session from the list and the menu bar. It comes back by itself when it waits for approval or has a new answer. It's hidden only in CapyWork; the Claude app is untouched. Unfold "past sessions" and right-click → Show to bring it back
 - **This week's grass**: work time per day
 
 **Right-click** a capybara to jump straight to the session waiting for approval. Clicking a notification opens its session too.
@@ -40,7 +41,19 @@ Click a capybara to open the attendance board:
 | Xcode Command Line Tools | `xcode-select --install` if missing |
 | Claude Code | `claude --version` |
 
-### Steps
+### Homebrew (recommended)
+
+```bash
+brew install e-jiwon/tap/capywork
+capywork-setup
+```
+
+`brew install` builds from source on your Mac (1–2 minutes) and `capywork-setup` wires the Claude Code hooks, the login item and the grass backfill. Built on your Mac, so there's no "unidentified developer" warning. Allow notifications when it asks on first launch.
+
+- **Update**: `brew upgrade capywork && capywork-setup`
+- **Remove**: `capywork-setup --uninstall && brew uninstall capywork` (removes only what CapyWork added; your own hooks and statusLine stay)
+
+### From source
 
 ```bash
 git clone https://github.com/E-JIWON/capywork.git
@@ -48,16 +61,16 @@ cd capywork
 ./install.sh
 ```
 
-It builds from source on your Mac, so there's no "unidentified developer" warning. The app lands in `~/Applications/CapyWork.app` and starts at login. Allow notifications when it asks on first launch.
+The app lands in `~/Applications/CapyWork.app` and starts at login.
 
 - **Update**: `git pull && ./install.sh`
-- **Remove**: `./uninstall.sh` (removes only what CapyWork added; your own hooks and statusLine stay)
+- **Remove**: `./uninstall.sh`
 
 ## How it works
 
 - **By default, no login and no network.** It only reads files on your Mac.
 - **(Optional) sign in for exact numbers** — the panel's 🔑 **Log in** opens a small claude.ai window inside CapyWork. Sign in **once**; the window closes itself and the panel shows the same usage and reset times as claude.ai, refreshed every 3 minutes (🟢 live). The session is kept only in CapyWork's own browser storage and "Log out" clears it. If Google sign-in is blocked, use "Continue with email".
-- `install.sh` registers Claude Code hooks in `~/.claude/settings.json` (backed up to `settings.json.bak-capywork`). The hooks append session events to `~/.capywork/log/`.
+- `capywork-setup` (or `install.sh`) registers Claude Code hooks in `~/.claude/settings.json` (backed up to `settings.json.bak-capywork`). The hooks append session events to `~/.capywork/log/`.
 - Plan usage comes from the `rate_limits` Claude Code passes to its statusLine, plus the Claude app's usage history. Without statusLine data, reset times are estimated from where usage drops to zero (shown with "약", about). An existing statusLine is left alone.
 - Session titles, read state, and "open session" come from the Claude desktop app's local files, **read-only**.
 - On first install it backfills the grass grid from your `~/.claude/projects` transcripts.

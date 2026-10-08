@@ -20,6 +20,8 @@ public struct Session: Identifiable, Sendable {
     public var finishedAt: Date?
     public var failStreak: Int
     public var unread: Bool
+    /// Hidden from the panel list and the menu bar via right-click, in CapyWork only.
+    public var hidden = false
 
     public init(id: String, project: String, state: WorkState = .idle, task: String = "",
                 since: Date, lastEvent: Date, title: String = "", desktopID: String? = nil,
@@ -42,7 +44,7 @@ public struct Session: Identifiable, Sendable {
     public var hasUnread: Bool { state == .idle && unread }
     public var needsYou: Bool { state == .waiting || hasUnread }
     /// Shown in the menu bar: busy, or waiting on you.
-    public var isActive: Bool { state != .idle || hasUnread }
+    public var isActive: Bool { !hidden && (state != .idle || hasUnread) }
 
     public static let neglectAfter: TimeInterval = 5 * 60
     public func isNeglected(now: Date) -> Bool {
@@ -54,5 +56,5 @@ public struct Session: Identifiable, Sendable {
         (a.rank, a.lastEvent) > (b.rank, b.lastEvent)
     }
 
-    var rank: Int { state == .waiting ? 3 : hasUnread ? 2 : state == .working ? 1 : 0 }
+    var rank: Int { hidden ? -1 : state == .waiting ? 3 : hasUnread ? 2 : state == .working ? 1 : 0 }
 }

@@ -7,7 +7,7 @@ struct SessionPanel: View {
 
     var body: some View {
         let a = store.account
-        PanelView(log: store.log, usage: store.usage, history: store.history, onOpen: store.open,
+        PanelView(log: store.log, usage: store.usage, history: store.history, onOpen: store.open, onHide: store.setHidden,
                   account: AccountState(status: a.status, checkedAt: a.checkedAt, problem: a.problem),
                   actions: AccountActions(signIn: a.signIn, check: a.checkNow, signOut: a.signOut))
     }
@@ -18,17 +18,21 @@ struct PanelView: View {
     let usage: PlanUsage
     let history: [Date: TimeInterval]
     let onOpen: (Session) -> Void
+    var onHide: (Session, Bool) -> Void = { _, _ in }
     var account = AccountState()
     var actions = AccountActions()
 
     @State private var showOlder = false
 
-    /// Read, idle sessions fold away after half an hour so the list stays about what's live.
+    /// Read, idle sessions fold away after half an hour so the list stays about what's live;
+    /// hidden ones fold away right away.
     static let foldAfter: TimeInterval = 30 * 60
 
     var body: some View {
         let sessions = log.sessions
-        let isRecent = { (s: Session) in s.state != .idle || s.hasUnread || Date.now.timeIntervalSince(s.lastEvent) < Self.foldAfter }
+        let isRecent = { (s: Session) in
+            !s.hidden && (s.state != .idle || s.hasUnread || Date.now.timeIntervalSince(s.lastEvent) < Self.foldAfter)
+        }
         let older = sessions.filter { !isRecent($0) }
         let shown = showOlder ? sessions : sessions.filter(isRecent)
         VStack(alignment: .leading, spacing: 12) {
@@ -44,9 +48,10 @@ struct PanelView: View {
                     .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                     .accessibilityLabel("오늘 근무 \(Format.duration(log.workTime))")
                 Spacer()
-                CountChip(count: sessions.filter(\.needsYou).count, label: "확인",
-                          tint: sessions.contains { $0.state == .waiting } ? .red : .blue)
-                CountChip(count: sessions.filter { $0.state == .working }.count, label: "작업", tint: Theme.claudeOrange)
+                let visible = sessions.filter { !$0.hidden }
+                CountChip(count: visible.filter(\.needsYou).count, label: "확인",
+                          tint: visible.contains { $0.state == .waiting } ? .red : .blue)
+                CountChip(count: visible.filter { $0.state == .working }.count, label: "작업", tint: Theme.claudeOrange)
             }
 
             UsageSection(usage: usage, account: account, actions: actions)
@@ -60,7 +65,7 @@ struct PanelView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(shown.enumerated()), id: \.element.id) { i, session in
                             if i > 0 { Divider().padding(.leading, 26).padding(.trailing, 8) }
-                            SessionRow(session: session) { onOpen(session) }
+                            SessionRow(session: session, onOpen: { onOpen(session) }, onHide: { onHide(session, !session.hidden) })
                         }
                     }
                 }

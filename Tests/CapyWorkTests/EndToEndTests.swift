@@ -29,8 +29,8 @@ struct EndToEndTests {
         #expect(p.terminationStatus == 0)
     }
 
-    func hook(_ event: String, _ extra: String = "") throws {
-        try run("hook.sh", #"{"hook_event_name":"\#(event)","session_id":"qa","cwd":"/tmp/qa-project"\#(extra)}"#)
+    func hook(_ event: String, _ extra: String = "", sid: String = "qa") throws {
+        try run("hook.sh", #"{"hook_event_name":"\#(event)","session_id":"\#(sid)","cwd":"/tmp/qa-project"\#(extra)}"#)
     }
 
     @Test func sessionLifecycle() throws {
@@ -77,10 +77,33 @@ struct EndToEndTests {
 
         try hook("SessionEnd")
         store.refresh(now: .now)
-        #expect(store.log.sessions.isEmpty)
+        #expect(!store.log.sessions.contains { $0.id == "qa" })
         #expect(store.cast.poses.first.map { if case .toss = $0 { true } else { false } } == true, "clock-out fling")
         store.refresh(now: .now + Cast.tossDuration + 1)
         #expect(store.cast == .napping)
+    }
+
+    @Test func hidingASession() throws {
+        _ = Self.home
+        let store = SessionStore()
+        store.notify = { _, _, _ in }
+        store.frontmostApp = { nil }
+        try hook("SessionStart", sid: "hide")
+        try hook("UserPromptSubmit", #","prompt":"숨겨줘""#, sid: "hide")
+        store.refresh()
+        let session = { store.log.sessions.first { $0.id == "hide" } }
+        store.setHidden(try #require(session()), true)
+        #expect(session()?.hidden == true)
+        #expect(session()?.isActive == false, "a hidden session leaves the menu bar")
+        #expect(SessionStore().log.sessions.first { $0.id == "hide" }?.hidden == true, "hiding survives a relaunch")
+
+        Thread.sleep(forTimeInterval: 1.1)  // hook timestamps are whole seconds
+        try hook("Stop", sid: "hide")
+        store.refresh()
+        #expect(session()?.hidden == false, "a new answer brings it back")
+        #expect(session()?.hasUnread == true)
+
+        store.setHidden(try #require(session()), true)  // leave it out of the other tests' menu bar
     }
 
     @Test func statusLineFeedsUsage() throws {
