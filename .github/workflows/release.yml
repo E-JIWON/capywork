@@ -1,0 +1,31 @@
+name: release
+
+# Actions → release → Run workflow: tags main as v<version> and publishes a GitHub release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "버전 (예: 1.1.0)"
+        required: true
+      notes:
+        description: "릴리즈 노트 (비우면 PR 목록으로 자동 작성)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ inputs.version }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          if [ -n "$NOTES" ]; then
+            gh release create "v$V" --target "$GITHUB_SHA" --title "v$V" --notes "$NOTES"
+          else
+            gh release create "v$V" --target "$GITHUB_SHA" --title "v$V" --generate-notes
+          fi
