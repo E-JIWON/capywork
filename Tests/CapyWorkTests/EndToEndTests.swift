@@ -46,7 +46,7 @@ struct EndToEndTests {
         store.refresh(now: start)
         #expect(store.cast.poses.count == 1)
         guard case .swim = store.cast.poses[0] else { Issue.record("working → swim, got \(store.cast)"); return }
-        #expect(store.summary == "카피 출근부: 작업 중 1")
+        #expect(store.summary == "카피 코드 바라: 작업 중 1")
         #expect(store.log.sessions.first?.task == "로그인 고쳐줘")
         #expect(store.log.sessions.first?.project == "qa-project")
 

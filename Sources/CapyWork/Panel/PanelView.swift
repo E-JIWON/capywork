@@ -37,7 +37,7 @@ struct PanelView: View {
         let shown = showOlder ? sessions : sessions.filter(isRecent)
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text("카피 출근부").font(.system(size: 14, weight: .semibold))
+                Text("카피 코드 바라").font(.system(size: 14, weight: .semibold))
                 Spacer()
                 Text(Date.now.formatted(.dateTime.month().day().weekday()))
                     .font(.system(size: 11)).foregroundStyle(.secondary)

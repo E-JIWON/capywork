@@ -1,7 +1,7 @@
 import AppKit
 import UserNotifications
 
-/// Native notifications shown as 카피 출근부; clicking one opens that session in the Claude app.
+/// Native notifications shown as 카피 코드 바라; clicking one opens that session in the Claude app.
 /// Only the installed .app posts them, so `swift build` binaries (tests, benchmarks) stay silent.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {

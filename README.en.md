@@ -1,6 +1,6 @@
 <img src="docs/icon.png" width="128" alt="CapyWork icon: a capybara napping with a yuzu under a night sky">
 
-# 🍊 CapyWork (카피 출근부)
+# 🍊 CapyWork (카피 코드 바라)
 
 [![test](https://github.com/E-JIWON/capywork/actions/workflows/test.yml/badge.svg)](https://github.com/E-JIWON/capywork/actions/workflows/test.yml) [![release](https://img.shields.io/github/v/release/E-JIWON/capywork)](https://github.com/E-JIWON/capywork/releases/latest) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) [![MIT](https://img.shields.io/github/license/E-JIWON/capywork?color=2ea043)](LICENSE) [![Homebrew](https://img.shields.io/badge/Homebrew-e--jiwon%2Ftap-FBB040?logo=homebrew&logoColor=white)](https://github.com/E-JIWON/homebrew-tap)
 

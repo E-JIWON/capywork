@@ -51,7 +51,7 @@ final class SessionStore {
                      ("새 답변", s.filter(\.hasUnread).count),
                      ("작업 중", s.filter { $0.state == .working }.count)]
             .filter { $0.1 > 0 }.map { "\($0.0) \($0.1)" }
-        return "카피 출근부: " + (parts.isEmpty ? "쉬는 중" : parts.joined(separator: ", "))
+        return "카피 코드 바라: " + (parts.isEmpty ? "쉬는 중" : parts.joined(separator: ", "))
     }
 
     func refresh(now: Date = .now) {

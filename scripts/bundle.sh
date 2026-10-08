@@ -21,7 +21,7 @@ cat > "$APP/Contents/Info.plist" <<INFO
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleIdentifier</key><string>com.capywork.app</string>
   <key>CFBundleName</key><string>CapyWork</string>
-  <key>CFBundleDisplayName</key><string>카피 출근부</string>
+  <key>CFBundleDisplayName</key><string>카피 코드 바라</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>

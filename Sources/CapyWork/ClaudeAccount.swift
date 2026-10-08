@@ -51,7 +51,7 @@ final class ClaudeAccount {
         web.load(URLRequest(url: Self.site.appending(path: "login")))
         let window = NSWindow(contentRect: web.frame, styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
-        window.title = "Claude 로그인 · 카피 출근부 (한 번만 하면 기억해요)"
+        window.title = "Claude 로그인 · 카피 코드 바라 (한 번만 하면 기억해요)"
         window.contentView = web
         window.isReleasedWhenClosed = false
         window.center()
